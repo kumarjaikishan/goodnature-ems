@@ -5,7 +5,7 @@ import { useApi } from '../../../utils/useApi';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import DataTable from '@/components/common/DataTable';
 import { Button } from '../../../components/ui/Button';
-import { Plus, Eye, Edit2, Trash2, Search, User, Download, FileText } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, Search, User, Download, FileText, Loader2, X } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { confirmDialog } from '../../../utils/confirmDialog';
 import { useCustomStyles } from '../../admin/attandence/attandencehelper';
@@ -18,6 +18,7 @@ const PlotCustomers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
 
@@ -28,12 +29,20 @@ const PlotCustomers = () => {
   const customStyles = useCustomStyles();
   const { request } = useApi();
 
-  const fetchPlotCustomers = async () => {
+  // Debounce search input (600ms) to avoid firing API requests on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchPlotCustomers = async (query = debouncedSearch) => {
     setLoading(true);
     try {
       const res = await apiClient({
         url: 'plots/customers',
-        params: { search, limit: 10000 },
+        params: { search: query, limit: 10000 },
       });
       setCustomers(res.data || res.customers || res || []);
     } catch (err) {
@@ -44,8 +53,8 @@ const PlotCustomers = () => {
   };
 
   useEffect(() => {
-    fetchPlotCustomers();
-  }, [search]);
+    fetchPlotCustomers(debouncedSearch);
+  }, [debouncedSearch]);
 
   const openViewModal = (user) => {
     setViewingUser(user);
@@ -326,15 +335,33 @@ const PlotCustomers = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 flex items-center gap-3 border border-slate-200">
-        <Search size={18} className="text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search customer by ID (e.g. GNC-26-27-001), name, mobile, email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-transparent outline-none text-slate-700 text-sm"
-        />
+      <div className="mb-4">
+        <div className="relative w-full sm:w-96">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+            {loading && customers.length > 0 ? (
+              <Loader2 size={14} className="animate-spin text-teal-600" />
+            ) : (
+              <Search size={14} />
+            )}
+          </span>
+          <input
+            type="text"
+            placeholder="Search by ID (e.g. PC-24/11/2627/207), name, mobile..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-9 pl-8 pr-8 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-lg text-xs text-slate-600 placeholder:text-slate-400 shadow-2xs transition"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+              title="Clear Search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}

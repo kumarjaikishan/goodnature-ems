@@ -144,7 +144,7 @@ function App() {
         if (data.type === 'attendance_update') {
           if (data.payload.type === 'punchIn') {
             if (user?.notificationSoundEnabled) {
-              notificationSound();
+              notificationSound.playSuccess();
             }
             toast.success(
               <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ function App() {
             window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
           } else if (data.payload.type === 'punchOut') {
             if (user?.notificationSoundEnabled) {
-              notificationSound();
+              notificationSound.playPunchOut();
             }
             toast.warning(
               <div className="flex items-center gap-2">

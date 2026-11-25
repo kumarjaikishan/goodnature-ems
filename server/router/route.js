@@ -35,14 +35,6 @@ const authLimiter = rateLimit({
   message: { message: "Too many login attempts. Please try again after 15 minutes." }
 });
 
-// const DEPLOY_SCRIPT = "/home/ubuntu/deploy.sh";
-const deploy_script = {
-  office: '/home/ubuntu/office.sh',
-  accusoft: '/home/ubuntu/accusoft.sh',
-  battlefiesta: '/home/ubuntu/battlefiesta.sh',
-  portfolio: '/home/ubuntu/portfolio.sh',
-}
-
 router.route('/health').get(async (req, res) => {
   return res.status(200).json({ status: "ok" })
 });
@@ -172,8 +164,7 @@ router.route('/advance/:id')
 router.route('/developerfetch').get(authmiddlewre, authorizeRoles('developer'), developer.allUser);
 router.route('/User').post(authmiddlewre, authorizeRoles('developer'), developer.addUser)
 router.route('/User/:id')
-  .put(authmiddlewre, authorizeRoles('developer'), developer.editUser)
-  .delete(authmiddlewre, authorizeRoles('developer'), developer.deleteUser);
+  .put(authmiddlewre, authorizeRoles('developer'), developer.editUser);
 
 router.route('/demo/:id').get(authmiddlewre, authorizeRoles('developer'), developer.getDemo)
 router.route('/demo/:id').delete(authmiddlewre, authorizeRoles('developer'), developer.deleteDemo)
@@ -337,39 +328,6 @@ router.route('/developer/essl-events')
 router.route('/developer/errors')
   .get(authmiddlewre, authorizeRoles('developer'), developer.getSystemErrors)
   .delete(authmiddlewre, authorizeRoles('developer'), developer.clearSystemErrors);
-
-router.route("/deploy/:project").get(authmiddlewre, authorizeRoles("developer"), (req, res) => {
-  const { project } = req.params;
-  const scriptPath = deploy_script[String(project).toLowerCase().trim()];
-  if (!scriptPath || typeof scriptPath !== 'string') {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid project identifier. Allowed: ${Object.keys(deploy_script).join(', ')}`
-    });
-  }
-
-  // Security hardening: execute bash with fixed argument array via execFile rather than string shell interpolation
-  const { execFile } = require('child_process');
-  execFile('bash', [scriptPath], (error, stdout, stderr) => {
-    if (error) {
-      console.error("Deployment error:", error.message);
-      return res.status(500).json({
-        success: false,
-        message: "Deployment failed",
-        error: error.message,
-      });
-    }
-
-    if (stderr) {
-      console.error("Deployment stderr:", stderr);
-    }
-
-    return res.json({
-      message: "Deployment triggered successfully!",
-      logs: stdout,
-    });
-  });
-});
 
 // Centralized System Audit & Activity Logs Routes (Superadmin, Admin, Developer)
 router.route('/audit-logs')

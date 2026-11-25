@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import EmployeeAvatar from '../../../components/common/EmployeeAvatar';
 
 const STATUS_OPTIONS = [
   { value: 'present', label: 'Present' },
@@ -33,17 +33,17 @@ const BulkEmployeeRow = memo(({
 
       <td className="p-2.5">
         <div className="flex items-center gap-2.5">
-          {emp.profileimage ? (
-            <img
-              alt={emp.userid?.name}
-              src={cloudinaryUrl(emp.profileimage, { format: 'webp', width: 60, height: 60 })}
-              className="w-7 h-7 rounded-full object-cover border border-slate-200"
-            />
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs">
-              {emp.userid?.name?.charAt(0) || 'E'}
-            </div>
-          )}
+          <EmployeeAvatar
+            src={emp.profileimage}
+            name={emp.userid?.name || ''}
+            initials={emp.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
+            bgColor="#ccfbf1"
+            textColor="#115e59"
+            sizeClass="w-7 h-7"
+            textClass="text-xs"
+            width={60}
+            height={60}
+          />
           <span className="text-xs font-semibold text-slate-800">{emp.userid?.name}</span>
         </div>
       </td>

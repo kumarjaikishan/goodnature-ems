@@ -237,6 +237,7 @@ const VoucherList = () => {
           });
           toast.success(res.message || "Voucher deleted successfully");
           fetchVouchers();
+          window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
         } catch (error) {
           console.error(error);
           toast.error(error.message || "Failed to delete voucher");
@@ -290,6 +291,7 @@ const VoucherList = () => {
       fetchVouchers();
       fetchLedgers();
       fetchTreasury();
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to save voucher");
@@ -363,6 +365,7 @@ const VoucherList = () => {
       fetchVouchers();
       fetchLedgers();
       fetchTreasury();
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to approve voucher");
@@ -399,6 +402,7 @@ const VoucherList = () => {
       fetchVouchers();
       fetchLedgers();
       fetchTreasury();
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to reject voucher");

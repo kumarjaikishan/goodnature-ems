@@ -834,84 +834,82 @@ const InstallmentCollection = ({ type, initialView }) => {
       {view === 'list' ? (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white p-3.5 rounded-2xl shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 border border-slate-200">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex flex-col gap-0.5 w-full sm:w-48">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Status</label>
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  options={[
-                    { value: 'ALL', label: `All Statuses (${receipts.length})` },
-                    {
-                      value: 'PENDING',
-                      label: `Pending Approval (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})`,
-                    },
-                    {
-                      value: 'APPROVED',
-                      label: `Approved (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})`,
-                    },
-                    {
-                      value: 'REJECTED',
-                      label: `Rejected (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})`,
-                    },
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-0.5 w-full sm:w-48">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Type</label>
-                <Select
-                  value={paymentTypeFilter}
-                  onChange={(e) => setPaymentTypeFilter(e.target.value)}
-                  options={[
-                    { value: 'ALL', label: 'All Payment Types' },
-                    { value: 'INSTALLMENT', label: 'Monthly Installments' },
-                    { value: 'DOWNPAYMENT', label: 'Down Payment' },
-                    { value: 'FULL_PAYMENT', label: 'Full Payment' },
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-0.5 w-full sm:w-48">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Payment Mode</label>
-                <Select
-                  value={paymentModeFilter}
-                  onChange={(e) => setPaymentModeFilter(e.target.value)}
-                  options={[
-                    { value: 'ALL', label: 'All Payment Modes' },
-                    { value: 'cash', label: 'Cash' },
-                    { value: 'upi', label: 'UPI / Online' },
-                    { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
-                    { value: 'cheque', label: 'Cheque' },
-                  ]}
-                />
-              </div>
+          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center gap-2.5">
+            <div className="relative flex-1 min-w-[220px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                <Search size={14} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search Receipt #, Booking, Plot #, Customer..."
+                className="w-full h-9 pl-8 pr-8 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-lg text-xs text-slate-600 placeholder:text-slate-400 transition"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                  title="Clear Search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
-            <div className="flex flex-col gap-0.5 w-full lg:max-w-xs">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">Search</label>
-              <div className="relative w-full">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-                  <Search size={15} />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search Receipt #, Booking, Plot #, Customer..."
-                  className="w-full h-10 pl-9 pr-9 bg-white border border-slate-200 focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none rounded-xl font-medium text-xs text-slate-800 transition"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
-                    title="Clear Search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+            <div className="w-full sm:w-44">
+              <Select
+                size="sm"
+                className="h-9 text-xs text-slate-600 border-slate-200 rounded-lg"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: `All Statuses (${receipts.length})` },
+                  {
+                    value: 'PENDING',
+                    label: `Pending Approval (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'PENDING').length})`,
+                  },
+                  {
+                    value: 'APPROVED',
+                    label: `Approved (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'APPROVED').length})`,
+                  },
+                  {
+                    value: 'REJECTED',
+                    label: `Rejected (${receipts.filter((r) => (r.status || 'APPROVED').toUpperCase() === 'REJECTED').length})`,
+                  },
+                ]}
+              />
+            </div>
+
+            <div className="w-full sm:w-44">
+              <Select
+                size="sm"
+                className="h-9 text-xs text-slate-600 border-slate-200 rounded-lg"
+                value={paymentTypeFilter}
+                onChange={(e) => setPaymentTypeFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: 'All Payment Types' },
+                  { value: 'INSTALLMENT', label: 'Monthly Installments' },
+                  { value: 'DOWNPAYMENT', label: 'Down Payment' },
+                  { value: 'FULL_PAYMENT', label: 'Full Payment' },
+                ]}
+              />
+            </div>
+
+            <div className="w-full sm:w-44">
+              <Select
+                size="sm"
+                className="h-9 text-xs text-slate-600 border-slate-200 rounded-lg"
+                value={paymentModeFilter}
+                onChange={(e) => setPaymentModeFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: 'All Payment Modes' },
+                  { value: 'cash', label: 'Cash' },
+                  { value: 'upi', label: 'UPI / Online' },
+                  { value: 'bank_transfer', label: 'Bank Transfer / NEFT / RTGS' },
+                  { value: 'cheque', label: 'Cheque' },
+                ]}
+              />
             </div>
           </div>
 

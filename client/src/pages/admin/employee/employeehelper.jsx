@@ -1,7 +1,7 @@
 import { apiClient } from "../../../utils/apiClient";
 import { setEmployees } from "../../../../store/userSlice";
 import { toast } from "../../../utils/toast";
-import { cloudinaryUrl } from "../../../utils/imageurlsetter";
+import EmployeeAvatar from "../../../components/common/EmployeeAvatar";
 import { Eye, FileSpreadsheet, Clock, Edit2, KeyRound, Trash2 } from "lucide-react";
 
 const AVATAR_PALETTES = [
@@ -58,28 +58,19 @@ export const getEmployeeColumns = ({
             const designation = row?.designation || '';
             const initials = getInitials(empName);
             const palette = getAvatarColor(empName);
-            const hasPhoto = Boolean(row?.profileimage);
 
             return (
                 <div className="flex items-center gap-2.5 py-0.5">
-                    {hasPhoto ? (
-                        <img
-                            alt={empName}
-                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200"
-                            src={cloudinaryUrl(row?.profileimage, {
-                                format: "webp",
-                                width: 80,
-                                height: 80,
-                            })}
-                        />
-                    ) : (
-                        <div
-                            style={{ backgroundColor: palette.bg, color: palette.text }}
-                            className="w-[32px] h-[32px] rounded-full flex items-center justify-center font-bold text-[11px] tracking-wider shrink-0 select-none shadow-2xs"
-                        >
-                            {initials}
-                        </div>
-                    )}
+                    <EmployeeAvatar
+                        src={row?.profileimage}
+                        name={empName}
+                        initials={initials}
+                        bgColor={palette.bg}
+                        textColor={palette.text}
+                        sizeClass="w-8 h-8"
+                        width={80}
+                        height={80}
+                    />
                     <div className="flex flex-col min-w-0">
                         <span className="font-semibold text-slate-800 text-xs truncate leading-tight">
                             {empName}

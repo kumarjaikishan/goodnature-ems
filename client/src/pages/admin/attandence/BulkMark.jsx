@@ -37,9 +37,14 @@ function rowDataReducer(state, action) {
     }
     case 'SET_STATUS': {
       const { empId, value } = action.payload;
+      const clearTimes = ['absent', 'leave', 'weekly off', 'holiday'].includes(value);
       return {
         ...state,
-        [empId]: { ...(state[empId] || {}), status: value },
+        [empId]: {
+          ...(state[empId] || {}),
+          status: value,
+          ...(clearTimes ? { punchIn: '', punchOut: '' } : {}),
+        },
       };
     }
     case 'APPLY_TO_ALL': {

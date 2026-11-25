@@ -154,16 +154,11 @@ const Department = () => {
       selector: (row) => row.department,
       sortable: true,
       cell: (row) => (
-        <div className="flex items-center gap-2.5 py-1">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs ${getInitialBg(row.department)}`}>
-            {row.department?.charAt(0)?.toUpperCase() || 'D'}
-          </div>
-          <div>
-            <span className="font-bold text-slate-800 text-xs block">{row.department}</span>
-            {row.description && (
-              <span className="text-[11px] text-slate-400 truncate max-w-xs block">{row.description}</span>
-            )}
-          </div>
+        <div className="py-1">
+          <span className="font-bold text-slate-800 text-xs block">{row.department}</span>
+          {row.description && (
+            <span className="text-[11px] text-slate-400 truncate max-w-xs block">{row.description}</span>
+          )}
         </div>
       ),
     },

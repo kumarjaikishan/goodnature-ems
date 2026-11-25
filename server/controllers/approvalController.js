@@ -47,7 +47,7 @@ exports.getPendingApprovalStats = async (req, res, next) => {
     let productMatch = null;
 
     if (isGlobalAdmin) {
-      voucherQuery = { status: 'PENDING' };
+      voucherQuery = { status: 'PENDING', type: 'MANUAL' };
       dpQuery = { status: 'PENDING', receiptType: { $in: ['BOOKING', 'DOWNPAYMENT', 'FULL_PAYMENT'] } };
       emiQuery = { status: 'PENDING', receiptType: 'INSTALLMENT' };
       productMatch = {};
@@ -57,6 +57,7 @@ exports.getPendingApprovalStats = async (req, res, next) => {
         const branchUserIds = await User.find({ branchIds: { $in: managerBranchIds } }).distinct('_id');
         voucherQuery = {
           status: 'PENDING',
+          type: 'MANUAL',
           $or: [
             { branchId: { $in: managerBranchIds } },
             { createdBy: { $in: branchUserIds } }

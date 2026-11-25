@@ -5,6 +5,7 @@ import { useState, Suspense, useEffect } from 'react';
 import Sidebar from '../components/sidebar';
 import ContentLoader from '../components/ContentLoader';
 import { isTokenValid, getRoleFromToken, clearAuthSession } from './auth';
+import { setSidebar } from '../../store/userSlice';
 
 const ProtectedRoutes = ({ allowedRoles = [] }) => {
   const dispatch = useDispatch();
@@ -79,20 +80,30 @@ const ProtectedRoutes = ({ allowedRoles = [] }) => {
 
   // Sidebar logic
   const sidebarOpen = Boolean(user?.sidebar);
-  const extended = Boolean(user?.extendedonMobile);
 
-  const sidebarWidth = isMobile
-    ? sidebarOpen
-      ? extended ? 'w-[180px]' : "w-[60px]"
-      : "w-0"
-    : sidebarOpen
-      ? "w-[220px]"
-      : "w-[70px]";
+  const desktopSidebarWidth = sidebarOpen ? "w-[220px]" : "w-[70px]";
 
   // ✅ Allowed
   return (
     <div className="h-screen w-full flex bg-slate-50 print:h-auto print:bg-white print:block">
-      <div className={`${sidebarWidth} no-print bg-white shadow-xl transition-all duration-300 overflow-hidden`}>
+      {/* Mobile Backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[1px] no-print"
+          onClick={() => dispatch(setSidebar(false))}
+          aria-hidden="true"
+        />
+      )}
+
+      <div
+        className={
+          isMobile
+            ? `fixed inset-y-0 left-0 z-50 w-[230px] no-print bg-white shadow-2xl transition-transform duration-300 ease-out overflow-hidden ${
+                sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+              }`
+            : `${desktopSidebarWidth} no-print bg-white shadow-xl transition-all duration-300 overflow-hidden`
+        }
+      >
         <Sidebar />
       </div>
 

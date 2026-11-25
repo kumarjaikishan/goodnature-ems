@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { Send, User, X, AlertCircle, Search } from "lucide-react";
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
-import { cloudinaryUrl } from '../../../utils/imageurlsetter';
+import EmployeeAvatar from '../../../components/common/EmployeeAvatar';
 import { getSingleEmployeeAttendanceApi } from '../../../api/attendance.api';
 
 // Custom UI Components
@@ -78,15 +78,25 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
         }
     }, [openmodal]);
 
-    const activeEmployees = (employee || []).filter(e => e.status !== false);
-    const selectedEmp = activeEmployees.find(e => e._id === inp.employeeId);
+    const activeEmployees = useMemo(
+        () => (employee || []).filter(e => e.status !== false),
+        [employee]
+    );
+    const selectedEmp = useMemo(
+        () => activeEmployees.find(e => e._id === inp.employeeId),
+        [activeEmployees, inp.employeeId]
+    );
 
-    const filteredEmployees = activeEmployees.filter(e => {
-        const name = e.userid?.name?.toLowerCase() || '';
-        const desig = e.designation?.toLowerCase() || '';
-        const search = employeeSearch.toLowerCase();
-        return name.includes(search) || desig.includes(search);
-    });
+    const filteredEmployees = useMemo(() => {
+        const search = employeeSearch.toLowerCase().trim();
+        if (!search) return activeEmployees;
+        return activeEmployees.filter(e => {
+            const name = e.userid?.name?.toLowerCase() || '';
+            const desig = e.designation?.toLowerCase() || '';
+            const empId = String(e.empId || '').toLowerCase();
+            return name.includes(search) || desig.includes(search) || empId.includes(search);
+        });
+    }, [activeEmployees, employeeSearch]);
 
     if (!openmodal) return null;
 
@@ -165,17 +175,17 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                         >
                             {selectedEmp ? (
                                 <div className="flex items-center gap-2 min-w-0">
-                                    {selectedEmp.profileimage ? (
-                                        <img
-                                            src={cloudinaryUrl(selectedEmp.profileimage, { format: "webp", width: 80, height: 80 })}
-                                            alt={selectedEmp.userid?.name}
-                                            className="w-6 h-6 rounded-full object-cover border border-slate-200 shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-[10px] shrink-0">
-                                            {selectedEmp.userid?.name?.charAt(0) || 'E'}
-                                        </div>
-                                    )}
+                                    <EmployeeAvatar
+                                        src={selectedEmp.profileimage}
+                                        name={selectedEmp.userid?.name || ''}
+                                        initials={selectedEmp.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
+                                        bgColor="#ccfbf1"
+                                        textColor="#115e59"
+                                        sizeClass="w-6 h-6"
+                                        textClass="text-[10px]"
+                                        width={80}
+                                        height={80}
+                                    />
                                     <span className="font-semibold text-slate-800 truncate">{selectedEmp.userid?.name}</span>
                                     <span className="text-slate-500 text-[11px] truncate">({selectedEmp.designation || 'Staff'})</span>
                                 </div>
@@ -230,17 +240,17 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                                                         : 'text-slate-700 hover:bg-slate-50'
                                                 }`}
                                             >
-                                                {emp.profileimage ? (
-                                                    <img
-                                                        src={cloudinaryUrl(emp.profileimage, { format: "webp", width: 80, height: 80 })}
-                                                        alt={emp.userid?.name}
-                                                        className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
-                                                    />
-                                                ) : (
-                                                    <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs shrink-0">
-                                                        {emp.userid?.name?.charAt(0) || 'E'}
-                                                    </div>
-                                                )}
+                                                <EmployeeAvatar
+                                                    src={emp.profileimage}
+                                                    name={emp.userid?.name || ''}
+                                                    initials={emp.userid?.name?.charAt(0)?.toUpperCase() || 'E'}
+                                                    bgColor="#ccfbf1"
+                                                    textColor="#115e59"
+                                                    sizeClass="w-7 h-7"
+                                                    textClass="text-xs"
+                                                    width={80}
+                                                    height={80}
+                                                />
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-semibold text-slate-800 truncate">{emp.userid?.name}</p>
                                                     <p className="text-[10px] text-slate-500 truncate">{emp.designation || 'Staff'}</p>

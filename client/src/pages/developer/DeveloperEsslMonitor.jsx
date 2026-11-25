@@ -607,14 +607,16 @@ const DeveloperEsslMonitor = () => {
             )}
 
             {/* DETAIL MODAL */}
-            <Modalbox open={Boolean(detailItem)} onClose={() => setDetailItem(null)}>
-                <div className="w-[540px] max-w-[92vw] p-6 bg-white rounded-2xl space-y-4">
-                    <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <h2 className="text-base font-bold text-slate-800">
-                            {detailItem?.type === 'log' ? 'Raw ESSL Device Log Details' : 'ESSL Event Details'}
-                        </h2>
-                        <button type="button" onClick={() => setDetailItem(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-                    </div>
+            <Modalbox
+                open={Boolean(detailItem)}
+                onClose={() => setDetailItem(null)}
+                title={detailItem?.type === 'log' ? 'Raw ESSL Device Log Details' : 'ESSL Event Details'}
+                maxWidth="max-w-lg"
+                footer={
+                    <Button variant="secondary" size="sm" onClick={() => setDetailItem(null)}>Close</Button>
+                }
+            >
+                <div className="space-y-4">
 
                     {detailItem && (
                         <div className="space-y-3 text-xs text-slate-700">
@@ -684,9 +686,6 @@ const DeveloperEsslMonitor = () => {
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-3 border-t border-slate-100">
-                        <Button variant="secondary" onClick={() => setDetailItem(null)}>Close</Button>
-                    </div>
                 </div>
             </Modalbox>
         </div>

@@ -462,19 +462,21 @@ const EmployeeAdvancePage = () => {
     return (
         <div className="p-2 md:p-6 max-w-7xl mx-auto space-y-4">
             <div className="flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-3 items-center flex-1">
-                    <div className="w-48">
+                <div className="flex flex-wrap gap-2.5 items-center flex-1">
+                    <div className="w-44">
                         <Select
-                            size="md"
+                            size="sm"
+                            className="h-9 text-xs text-slate-600 border-slate-200 rounded-lg"
                             options={branchOptions}
                             value={filters.branch}
                             onChange={(e) => handleFilterChange("branch", e.target.value)}
                         />
                     </div>
 
-                    <div className="w-80">
+                    <div className="w-72">
                         <SearchableSelect
-                            size="md"
+                            size="sm"
+                            className="h-9 text-xs text-slate-600 border-slate-200 rounded-lg"
                             options={employeeOptions}
                             placeholder="Select Employee..."
                             searchPlaceholder="Search employee..."
@@ -485,9 +487,10 @@ const EmployeeAdvancePage = () => {
                     </div>
 
                     {/* Search in employee advance entries */}
-                    <div className="min-w-[240px] max-w-xs flex-1">
+                    <div className="min-w-[220px] max-w-xs flex-1">
                         <Input
-                            size="md"
+                            size="sm"
+                            className="h-9 text-xs text-slate-600 placeholder:text-slate-400 border-slate-200 rounded-lg"
                             startIcon={Search}
                             placeholder="Search advance entries..."
                             value={searchTerm}

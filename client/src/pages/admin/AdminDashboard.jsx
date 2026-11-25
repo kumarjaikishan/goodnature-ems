@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { updateAttendance, setEmployees } from '../../../store/userSlice';
-import { cloudinaryUrl } from '../../utils/imageurlsetter';
+import EmployeeAvatar from '../../components/common/EmployeeAvatar';
 import { apiClient } from '../../utils/apiClient';
 import api from '../../api/axios';
 import PageLoader from '../../components/common/PageLoader';
@@ -121,14 +121,19 @@ const EmpAvatar = ({ emp, isPunchIn, isPresent, isAbsent, isLeave }) => {
   return (
     <div className="flex flex-col items-center group cursor-pointer" title={emp?.userid?.name}>
       <span className={`${border} p-[2px] border-2 rounded-full transition-transform group-hover:scale-110`}>
-        {emp?.profileimage ? (
-          <img src={cloudinaryUrl(emp.profileimage, { format: 'webp', width: 60, height: 60 })}
-            alt={emp.userid?.name} className="w-8 h-8 rounded-full object-cover" />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-            <HiOutlineUser className="w-4 h-4 text-slate-400" />
-          </div>
-        )}
+        <EmployeeAvatar
+          src={emp?.profileimage}
+          name={emp?.userid?.name || ''}
+          sizeClass="w-8 h-8"
+          imgClassName="rounded-full object-cover"
+          width={60}
+          height={60}
+          fallbackNode={
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+              <HiOutlineUser className="w-4 h-4 text-slate-400" />
+            </div>
+          }
+        />
       </span>
       <p className="text-[10px] font-semibold text-slate-600 text-center truncate w-12 mt-1 leading-tight">
         {emp?.userid?.name?.split(' ')[0]}
@@ -243,7 +248,7 @@ const AdminDashboard = () => {
       const doPlots = showPlots;
       const doInvest = showInvestment;
       if (doPlots) requests.push(api.get('/plots/dashboard/stats'));
-      if (doInvest) requests.push(api.get('/investment/dashboard-stats'));
+      if (doInvest) requests.push(api.get('/investments/dashboard-stats'));
 
       const results = await Promise.allSettled(requests);
       const [empRes, attRes, ...rest] = results;

@@ -63,13 +63,24 @@ const ErrorLogs = () => {
         fetchErrors();
     }, [fetchErrors]);
 
-    // Auto-refresh every 5 seconds if enabled
+    // Auto-refresh every 5 seconds if enabled and tab is visible
     useEffect(() => {
         if (!autoRefresh) return;
         const interval = setInterval(() => {
-            fetchErrors(true);
+            if (!document.hidden) {
+                fetchErrors(true);
+            }
         }, 5000);
-        return () => clearInterval(interval);
+        const handleVisibility = () => {
+            if (!document.hidden) {
+                fetchErrors(true);
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
     }, [autoRefresh, fetchErrors]);
 
     const handleClearLogs = async () => {

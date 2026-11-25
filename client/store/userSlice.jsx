@@ -31,7 +31,6 @@ const initialUserState = {
     payroll: null,
     status: 'idle',
     sidebar: typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
-    extendedonMobile: false,
     liveAttandence: true,
     notificationSoundEnabled: true,
     primaryColor: '#1e293b',
@@ -68,9 +67,6 @@ const userSlice = createSlice({
         setPrimaryColor(state, action) {
             state.primaryColor = action.payload;
         },
-        toogleextendedonMobile(state, action) {
-            state.extendedonMobile = !state.extendedonMobile;
-        },
         toogleliveAttandence(state, action) {
             state.liveAttandence = !state.liveAttandence;
         },
@@ -95,5 +91,5 @@ const userSlice = createSlice({
     },
 });
 
-export const { userlogout, updateAttendance, setEmployees, setPrimaryColor, setpayroll, toogleliveAttandence, togglenotificationSound, setuser, tooglesidebar, setSidebar, toogleextendedonMobile } = userSlice.actions;
+export const { userlogout, updateAttendance, setEmployees, setPrimaryColor, setpayroll, toogleliveAttandence, togglenotificationSound, setuser, tooglesidebar, setSidebar } = userSlice.actions;
 export default userSlice.reducer;

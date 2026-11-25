@@ -186,6 +186,7 @@ const VoucherDetails = () => {
       toast.success(`Voucher ${voucher.voucherNo} approved successfully`);
       setOpenApproveModal(false);
       fetchVoucher();
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to approve voucher");
@@ -217,6 +218,7 @@ const VoucherDetails = () => {
       toast.success(`Voucher ${voucher.voucherNo} rejected`);
       setOpenRejectModal(false);
       fetchVoucher();
+      window.dispatchEvent(new CustomEvent('ems-refresh-approvals'));
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to reject voucher");

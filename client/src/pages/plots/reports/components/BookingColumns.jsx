@@ -38,8 +38,8 @@ export const getBookingColumns = ({
     cell: (row) => (
       <div className="flex flex-col gap-1 py-1">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shadow-2xs">
-            Plot #{row.plotId?.plotNumber || 'N/A'}
+          <span className="text-xs font-bold text-slate-800">
+            {row.plotId?.plotNumber || 'N/A'}
           </span>
           {row.scheme && (
             <span className="text-[9px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">

@@ -15,6 +15,8 @@ const holidaySchema = new mongoose.Schema({
     default: "Other"
   },
   description: { type: String, trim: true }
-});
+}, { timestamps: true });
+
+holidaySchema.index({ fromDate: 1, toDate: 1 });
 
 module.exports = mongoose.model('Holiday', holidaySchema);

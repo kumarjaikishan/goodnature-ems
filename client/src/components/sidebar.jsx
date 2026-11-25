@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { clearAuthSession } from "../utils/auth";
+import { setSidebar } from "../../store/userSlice";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getSidebarMenuConfig, OPERATIONAL_ROLES } from "./sidebar/sidebarMenuConfig";
 import { cloudinaryUrl } from "../utils/imageurlsetter";
@@ -21,8 +22,19 @@ const Sidebar = () => {
   const profile = role === 'employee' ? empProfile : adminProfile;
   const company = role === 'employee' ? empCompany : adminCompany;
   const sidebarOpen = Boolean(user?.sidebar);
-  const extended = Boolean(user?.extendedonMobile);
-  const isMobile = window.innerWidth < 600;
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 600 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 600);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) dispatch(setSidebar(false));
+  }, [isMobile, dispatch]);
 
   const [openSubmenu, setOpenSubmenu] = useState(null); // for expanded sidebar
   const [hoveredMenu, setHoveredMenu] = useState(null); // for collapsed sidebar
@@ -102,7 +114,7 @@ const Sidebar = () => {
     });
   };
 
-  const showText = isMobile ? sidebarOpen && extended : sidebarOpen;
+  const showText = isMobile ? true : sidebarOpen;
 
   // Helper to determine if a sub-item should be active for current path
   const isSubmenuItemActive = useCallback((childLink) => {
@@ -270,7 +282,7 @@ const Sidebar = () => {
             });
             return visibleChildren.length > 0;
           }
-          if (item.resource && !hasPermission(profile, item.resource, 1)) return false;
+          if (item.resource && role !== 'developer' && !hasPermission(profile, item.resource, 1)) return false;
           return true;
         });
         if (!filteredItems.length) return null;
@@ -377,7 +389,7 @@ const Sidebar = () => {
 
                                 <NavLink
                                   to={child.link}
-                                  onClick={() => setOpenSubmenu(menuId)}
+                                  onClick={() => { setOpenSubmenu(menuId); closeMobileSidebar(); }}
                                   className={() =>
                                     `w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-all ${isItemActive
                                       ? "bg-teal-700 text-white font-semibold shadow-xs"
@@ -480,7 +492,7 @@ const Sidebar = () => {
                     to={item.link}
                     end={item.link === "/dashboard"}
                     key={item.link}
-                    onClick={() => setOpenSubmenu(null)}
+                    onClick={() => { setOpenSubmenu(null); closeMobileSidebar(); }}
                     className={({ isActive }) =>
                       `flex items-center rounded-xl text-xs transition-all ${showText ? "justify-start gap-2.5 px-3 py-2" : "justify-center h-10 w-full"
                       } ${isActive

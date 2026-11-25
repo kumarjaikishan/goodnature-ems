@@ -1,11 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
-import { toogleextendedonMobile, toogleliveAttandence, togglenotificationSound } from "../../store/userSlice";
+import { toogleliveAttandence, togglenotificationSound } from "../../store/userSlice";
 import { Volume2, VolumeX, Bell, Play } from "lucide-react";
 import { notificationSound } from "../utils/sound";
 
 const Settings = () => {
     const dispatch = useDispatch();
-    const extendedMobile = useSelector((state) => state.user.extendedonMobile);
     const user = useSelector((state) => state.user);
     const liveAttandence = useSelector((state) => state.user.liveAttandence);
     const soundEnabled = useSelector((state) => state.user.notificationSoundEnabled ?? true);
@@ -91,25 +90,6 @@ const Settings = () => {
                             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-700 relative"></div>
                         </label>
                     </div>
-                </div>
-            </div>
-
-            {/* Display & Layout Preferences */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-4 sm:p-5 flex items-center justify-between">
-                    <div>
-                        <span className="text-sm font-semibold text-slate-800 block">Extended Sidebar on Mobile</span>
-                        <span className="text-xs text-slate-500">Keep navigation sidebar expanded when viewing on mobile screens.</span>
-                    </div>
-                    <label className="inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={extendedMobile}
-                            onChange={() => dispatch(toogleextendedonMobile())}
-                        />
-                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-700 relative"></div>
-                    </label>
                 </div>
             </div>
         </div>

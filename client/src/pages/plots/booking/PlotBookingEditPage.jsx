@@ -756,7 +756,7 @@ export default function PlotBookingEditPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/dashboard/plots/booking/${id}`)}
+            onClick={() => navigate(-1)}
             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition text-slate-600 font-medium text-xs flex items-center gap-1 cursor-pointer"
           >
             <ArrowLeft size={16} /> Back
