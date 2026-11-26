@@ -2646,17 +2646,27 @@ class PlotBookingService {
 
           const agr = await KisanLandAgreement.findById(src.agreementId).session(session);
           if (agr) {
-            agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
-            agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
-            if (agr.unregisteredAgreedSqFt) {
+            const resolvedSourceType = src.sourceType || (src.deedId ? 'REGISTRY_DEED' : 'AGREEMENT');
+            if (resolvedSourceType === 'REGISTRY_DEED') {
+              const deed = agr.registryDeeds.find(
+                (d) => String(d._id) === String(src.deedId) || d.deedNumber === src.deedNumber
+              );
+              if (deed) {
+                deed.allocatedSqFt = Math.max(0, (deed.allocatedSqFt || 0) - numSqFt);
+                deed.availableSqFt = Math.max(0, deed.registeredSqFt - deed.allocatedSqFt);
+                deed.status = 'ACTIVE';
+              }
+            } else if (agr.unregisteredAgreedSqFt) {
               agr.unregisteredAllocatedSqFt = Math.max(0, (agr.unregisteredAllocatedSqFt || 0) - numSqFt);
               agr.unregisteredAvailableSqFt = Math.max(0, agr.unregisteredAgreedSqFt - agr.unregisteredAllocatedSqFt);
             }
+            agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
+            agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
             await agr.save({ session });
 
             await new LandStockLedger({
               agreementId: src.agreementId,
-              sourceType: src.sourceType || 'KISAN_AGREEMENT',
+              sourceType: resolvedSourceType,
               deedId: src.deedId || null,
               deedNumber: src.deedNumber || '',
               bookingId: booking._id,

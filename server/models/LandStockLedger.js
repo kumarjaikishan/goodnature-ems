@@ -52,6 +52,7 @@ const landStockLedgerSchema = new mongoose.Schema(
         'BOOKING_ALLOCATION',
         'BOOKING_RESTRUCTURING_DELTA',
         'BOOKING_CANCELLATION_RESTORE',
+        'BOOKING_REJECTION_RESTORE',
         'MANUAL_ADJUSTMENT',
       ],
       required: true,

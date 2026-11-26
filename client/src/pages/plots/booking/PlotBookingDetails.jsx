@@ -250,26 +250,8 @@ const PlotBookingDetails = () => {
             </div>
           </div>
 
-          {/* Primary Action Buttons (Approve / Reject / Collect Payment) */}
+          {/* Primary Action Button (Collect Payment) */}
           <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
-            {!isSponsor && booking.status === 'PENDING' && (
-              <button
-                onClick={handleApproveBooking}
-                disabled={approveLoading}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                <CheckCircle2 size={16} /> {approveLoading ? 'Approving...' : 'Approve'}
-              </button>
-            )}
-            {!isSponsor && booking.status === 'PENDING' && (
-              <button
-                onClick={() => setRejectModalOpen(true)}
-                disabled={approveLoading}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                <RotateCcw size={15} className="text-rose-600" /> Reject
-              </button>
-            )}
             {!isSponsor && booking.status !== 'CANCELLED' && (
               <button
                 onClick={() => {
