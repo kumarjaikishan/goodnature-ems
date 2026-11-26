@@ -192,6 +192,42 @@ const deleteleavebalance = async (req, res) => {
   }
 };
 
+const updateLeaveTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, days: rawDays, remarks } = req.body;
+    const days = Number(rawDays);
+
+    if (isNaN(days) || days <= 0) {
+      return res.status(400).json({ success: false, message: "Leaves must be greater than 0" });
+    }
+
+    const tx = await LeaveTransaction.findById(id);
+    if (!tx) {
+      return res.status(404).json({ success: false, message: "Leave transaction not found" });
+    }
+
+    const validType = ["credit", "debit", "adjustment"].includes(type) ? type : tx.type;
+    tx.type = validType;
+    tx.days = days;
+    if (remarks !== undefined) tx.remarks = remarks;
+    tx.balanceAfter = validType === "debit" ? tx.balanceBefore - days : tx.balanceBefore + days;
+    tx.actionBy = req.user?.id || tx.actionBy;
+
+    await tx.save();
+    await recalculateLeaveBalances(tx.employeeId, tx.policyId);
+
+    res.status(200).json({
+      success: true,
+      message: "Leave entry updated and balance recalculated",
+      data: tx,
+    });
+  } catch (err) {
+    console.error("Error updating leave transaction:", err.message);
+    res.status(500).json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+
 const getMyLeaveBalance = async (req, res) => {
     try {
         const employeeId = req.user.employeeId;
@@ -287,7 +323,7 @@ const bulkAddLeaveBalance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { policyId, type, amount: rawAmount, remarks } = req.body;
+    const { policyId, type, amount: rawAmount, remarks, employeeIds, branchId } = req.body;
     const amount = Number(rawAmount);
 
     if (isNaN(amount) || amount <= 0) {
@@ -300,12 +336,28 @@ const bulkAddLeaveBalance = async (req, res) => {
       return res.status(400).json({ success: false, message: "Leave policy is required" });
     }
 
-    const Employee = require("../models/employee");
-    const activeEmployees = await Employee.find({ status: { $ne: false } }).session(session);
+    const empFilter = { status: { $ne: false } };
+    if (Array.isArray(employeeIds)) {
+      if (employeeIds.length === 0) {
+        await session.abortTransaction();
+        return res.status(400).json({ success: false, message: "Please select at least one employee" });
+      }
+      empFilter._id = { $in: employeeIds };
+    } else if (branchId && branchId !== "all") {
+      empFilter.branchId = branchId;
+    }
+
+    if (req.user?.role === "manager" && Array.isArray(req.user.branchIds)) {
+      empFilter.branchId = empFilter.branchId
+        ? { $in: req.user.branchIds.filter((id) => String(id) === String(empFilter.branchId)) }
+        : { $in: req.user.branchIds };
+    }
+
+    const activeEmployees = await Employee.find(empFilter).session(session);
 
     if (activeEmployees.length === 0) {
       await session.abortTransaction();
-      return res.status(400).json({ success: false, message: "No active employees found" });
+      return res.status(400).json({ success: false, message: "No matching active employees found" });
     }
 
     for (const emp of activeEmployees) {
@@ -329,16 +381,17 @@ const bulkAddLeaveBalance = async (req, res) => {
 
     await session.commitTransaction();
 
-    // Recalculate summaries asynchronously
-    for (const emp of activeEmployees) {
-      recalculateLeaveBalances(emp._id, policyId).catch((err) =>
-        console.error(`Error recalculating leave for employee ${emp._id}:`, err.message)
-      );
-    }
+    await Promise.all(
+      activeEmployees.map((emp) =>
+        recalculateLeaveBalances(emp._id, policyId).catch((err) =>
+          console.error(`Error recalculating leave for employee ${emp._id}:`, err.message)
+        )
+      )
+    );
 
     res.status(200).json({
       success: true,
-      message: `Leave balance added to ${activeEmployees.length} employees successfully`,
+      message: `Leave balance updated for ${activeEmployees.length} employee(s) successfully`,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -362,5 +415,6 @@ module.exports = {
     getMyLeaveBalance,
     getMyLeaveTransactions,
     updateleavebalance,
+    updateLeaveTransaction,
     bulkAddLeaveBalance
 };

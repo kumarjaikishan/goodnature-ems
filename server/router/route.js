@@ -144,6 +144,8 @@ router.route('/leave-balances/:id')
 // Leave Transactions (Admin View)
 router.route('/leave-transactions/:employeeId')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'demo'), checkPermission("leave", 1), leaveBalance.getLeaveTransactions)
+router.route('/leave-transactions/:id')
+  .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager'), checkPermission("leave", 3), leaveBalance.updateLeaveTransaction)
 
 // My Leaves (Employee Portal)
 router.route('/my-leave-balances').get(authmiddlewre, leaveBalance.getMyLeaveBalance);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import DataTable from '@/components/common/DataTable';
 import { apiClient } from "../../utils/apiClient";
-import { Trash2, Edit2, ExternalLink, Eye, Search, Plus, User, X, AlertCircle } from "lucide-react";
+import { Trash2, ExternalLink, Eye, Search, Plus, User, X, AlertCircle } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "../../utils/toast";
 import { confirmDialog } from "../../utils/confirmDialog";
@@ -11,7 +11,6 @@ import { setEmployees } from "../../../store/userSlice";
 import LeaveHistoryModal from "./components/LeaveHistoryModal";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import { usePermission } from "../../utils/CheckPermission";
-import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -50,8 +49,10 @@ const Leaveledger = () => {
         branch: 'all',
     });
     const navigate = useNavigate();
-    const [editingId, setEditingId] = useState(null);
     const [isBulk, setIsBulk] = useState(false);
+    const [bulkBranchFilter, setBulkBranchFilter] = useState('all');
+    const [bulkSearch, setBulkSearch] = useState('');
+    const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
     const [tableLoading, setTableLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const { employee, branch, leavePolicies } = useSelector((state) => state.user);
@@ -100,36 +101,41 @@ const Leaveledger = () => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleOpen = useCallback((row = null) => {
+    const handleOpen = useCallback(() => {
         setIsBulk(false);
-        if (row) {
-            setForm({
-                employeeId: row.employeeId?._id || "",
-                companyId: row.companyId || "",
-                branchId: row.branchId || "",
-                type: "credit",
-                amount: 0,
-                policyId: row.policyId?._id || row.policyId || "",
-                remarks: "",
-            });
-            setEditingId(row._id);
-        } else {
-            setForm({
-                employeeId: "",
-                companyId: "",
-                branchId: "",
-                type: "credit",
-                amount: 0,
-                policyId: "",
-                remarks: "",
-            });
-            setEditingId(null);
-        }
+        setForm({
+            employeeId: "",
+            companyId: "",
+            branchId: "",
+            type: "credit",
+            amount: 0,
+            policyId: "",
+            remarks: "",
+        });
         setOpen(true);
     }, []);
 
+    const activeEmployeeList = useMemo(
+        () => (employee || []).filter((emp) => emp.status !== false),
+        [employee]
+    );
+
+    const bulkVisibleEmployees = useMemo(() => {
+        const q = bulkSearch.trim().toLowerCase();
+        return activeEmployeeList.filter((emp) => {
+            const branchMatch = bulkBranchFilter === 'all' || String(emp.branchId?._id || emp.branchId) === String(bulkBranchFilter);
+            const name = emp.userid?.name?.toLowerCase() || '';
+            const empId = emp.empId?.toLowerCase() || '';
+            const searchMatch = !q || name.includes(q) || empId.includes(q);
+            return branchMatch && searchMatch;
+        });
+    }, [activeEmployeeList, bulkBranchFilter, bulkSearch]);
+
     const handleBulkOpen = () => {
         setIsBulk(true);
+        setBulkBranchFilter('all');
+        setBulkSearch('');
+        setSelectedEmployeeIds(activeEmployeeList.map((e) => e._id));
         setForm({
             employeeId: "all",
             companyId: "",
@@ -139,29 +145,78 @@ const Leaveledger = () => {
             policyId: "",
             remarks: "",
         });
-        setEditingId(null);
         setOpen(true);
     };
 
+    const toggleBulkEmployee = (id) => {
+        setSelectedEmployeeIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    const allVisibleSelected =
+        bulkVisibleEmployees.length > 0 &&
+        bulkVisibleEmployees.every((emp) => selectedEmployeeIds.includes(emp._id));
+
+    const toggleAllVisibleBulk = () => {
+        const visibleIds = bulkVisibleEmployees.map((e) => e._id);
+        if (allVisibleSelected) {
+            setSelectedEmployeeIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+        } else {
+            setSelectedEmployeeIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+        }
+    };
+
+    const groupedEmployees = useMemo(() => {
+        const map = new Map();
+        for (const item of rows || []) {
+            const empKey = String(item.employeeId?._id || item._id);
+            const existing = map.get(empKey);
+            const policyName = item.policyId?.name || '';
+            if (!existing) {
+                map.set(empKey, {
+                    _id: empKey,
+                    employeeId: item.employeeId,
+                    branchId: item.branchId,
+                    totalAllocated: Number(item.totalAllocated) || 0,
+                    used: Number(item.used) || 0,
+                    remaining: Number(item.remaining) || 0,
+                    balanceIds: [item._id],
+                    policyNames: policyName ? [policyName] : [],
+                });
+            } else {
+                existing.totalAllocated += Number(item.totalAllocated) || 0;
+                existing.used += Number(item.used) || 0;
+                existing.remaining += Number(item.remaining) || 0;
+                existing.balanceIds.push(item._id);
+                if (policyName && !existing.policyNames.includes(policyName)) {
+                    existing.policyNames.push(policyName);
+                }
+            }
+        }
+        return Array.from(map.values());
+    }, [rows]);
+
     const filteredEmployees = useMemo(() => {
         const q = filters.searchText.trim().toLowerCase();
-        return (rows || []).filter(emp => {
+        return groupedEmployees.filter(emp => {
             const name = emp.employeeId?.userid?.name?.toLowerCase() || '';
             const empId = emp.employeeId?.empId?.toLowerCase() || '';
-            const policyName = emp.policyId?.name?.toLowerCase() || '';
+            const policyText = emp.policyNames.join(' ').toLowerCase();
             const branchId = emp.branchId || '';
 
-            const nameMatch = !q || name.includes(q) || empId.includes(q) || policyName.includes(q);
+            const nameMatch = !q || name.includes(q) || empId.includes(q) || policyText.includes(q);
             const branchMatch = filters.branch === 'all' || String(branchId) === String(filters.branch);
 
             return nameMatch && branchMatch;
         });
-    }, [rows, filters]);
+    }, [groupedEmployees, filters]);
 
     const handleClose = () => setOpen(false);
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
+        if (isBulk && selectedEmployeeIds.length === 0) return toast.warning("Please select at least one Employee");
         if (!isBulk && !form.employeeId) return toast.warning("Please select Employee");
         if (!form.policyId) return toast.warning("Please select Leave Policy");
         if (!form.amount || Number(form.amount) < 1) return toast.warning("Please enter No. of Leaves (at least 1)");
@@ -176,21 +231,11 @@ const Leaveledger = () => {
                         policyId: form.policyId,
                         type: form.type,
                         amount: form.amount,
-                        remarks: form.remarks
+                        remarks: form.remarks,
+                        employeeIds: selectedEmployeeIds,
                     }
                 });
-                toast.success("Bulk leave balance added successfully");
-            } else if (editingId) {
-                await apiClient({
-                    url: `leave-balances/${editingId}`,
-                    method: "PUT",
-                    body: {
-                        type: form.type,
-                        amount: form.amount,
-                        remarks: form.remarks
-                    }
-                });
-                toast.success("Leave balance updated");
+                toast.success(`Bulk leave balance updated for ${selectedEmployeeIds.length} employee(s)`);
             } else {
                 await apiClient({
                     url: `leave-balances`,
@@ -208,10 +253,11 @@ const Leaveledger = () => {
         }
     };
 
-    const handleDelete = useCallback(async (id) => {
+    const handleDelete = useCallback(async (balanceIds) => {
+        const ids = Array.isArray(balanceIds) ? balanceIds : [balanceIds];
         const proceed = await confirmDialog({
-            title: "Delete Summary Record?",
-            text: "This will delete the leave balance summary and its transaction history for this policy.",
+            title: "Delete Leave Balance?",
+            text: "This will delete all leave balance records and transaction history for this employee.",
             confirmText: "Delete",
             cancelText: "Cancel",
             isDanger: true,
@@ -219,10 +265,14 @@ const Leaveledger = () => {
         if (!proceed) return;
 
         try {
-            await apiClient({
-                url: `leave-balances/${id}`,
-                method: "DELETE"
-            });
+            await Promise.all(
+                ids.map((id) =>
+                    apiClient({
+                        url: `leave-balances/${id}`,
+                        method: "DELETE"
+                    })
+                )
+            );
             toast.success("Leave balance deleted");
             fetchLeaveLedgerData();
         } catch (error) {
@@ -281,17 +331,6 @@ const Leaveledger = () => {
             },
         },
         {
-            name: "Leave Policy",
-            selector: (row) => row?.policyId?.name || "",
-            sortable: true,
-            minWidth: '150px',
-            cell: (row) => (
-                <span className="text-xs font-medium text-slate-700">
-                    {row?.policyId?.name || 'General'}
-                </span>
-            )
-        },
-        {
             name: "Total Allotted",
             selector: (row) => row.totalAllocated,
             sortable: true,
@@ -338,22 +377,12 @@ const Leaveledger = () => {
                             >
                                 <Eye size={16} />
                             </button>
-                            {canEdit && (
-                                <button
-                                    type="button"
-                                    title="Adjust Balance"
-                                    className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
-                                    onClick={() => handleOpen(row)}
-                                >
-                                    <Edit2 size={16} />
-                                </button>
-                            )}
                             {canDelete && (
                                 <button
                                     type="button"
-                                    title="Delete Summary"
+                                    title="Delete Leave Balance"
                                     className="p-1 rounded text-red-500 hover:bg-red-50 transition cursor-pointer"
-                                    onClick={() => handleDelete(row._id)}
+                                    onClick={() => handleDelete(row.balanceIds)}
                                 >
                                     <Trash2 size={16} />
                                 </button>
@@ -374,7 +403,7 @@ const Leaveledger = () => {
             ),
             width: '120px'
         },
-    ], [canEdit, canDelete, handleOpen, handleDelete, navigate]);
+    ], [canDelete, handleDelete, navigate]);
 
     const branchOptions = [
         { label: 'All Branches', value: 'all' },
@@ -403,7 +432,7 @@ const Leaveledger = () => {
                         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         <input
                             type="text"
-                            placeholder="Search employee or policy..."
+                            placeholder="Search employee name or ID..."
                             value={filters.searchText}
                             onChange={(e) => handleFilterChange("searchText", e.target.value)}
                             className="w-full h-9 pl-8 pr-7 text-xs text-slate-600 placeholder:text-slate-400 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition"
@@ -469,36 +498,114 @@ const Leaveledger = () => {
                 />
             </div>
 
-            {/* Add / Edit / Bulk Modal */}
+            {/* Add / Bulk Modal */}
             <Modalbox
                 open={open}
                 onClose={handleClose}
-                title={isBulk ? "Bulk Add Leave Balance" : editingId ? "Adjust Leave Balance" : "Add Leave Balance"}
-                subtitle={editingId ? "Credit or debit leave days for this employee & policy" : "Allot or debit employee leave balances"}
-                maxWidth="max-w-lg"
+                title={isBulk ? "Bulk Add Leave Balance" : "Add Leave Balance"}
+                subtitle="Allot or debit employee leave balances"
+                maxWidth={isBulk ? "max-w-xl" : "max-w-lg"}
                 footer={
                     <>
                         <Button variant="outline" size="sm" type="button" onClick={handleClose}>
                             Cancel
                         </Button>
                         <Button form="leave-ledger-form" variant="primary" size="sm" type="submit" loading={submitting}>
-                            {editingId ? "Adjust Balance" : "Save Balance"}
+                            Save Balance
                         </Button>
                     </>
                 }
             >
                 <form id="leave-ledger-form" onSubmit={handleSubmit} className="space-y-4">
                     {isBulk ? (
-                        <Input
-                            label="Target Employees"
-                            disabled
-                            value="All Active Employees"
-                        />
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-slate-700 tracking-wide">
+                                    Target Employees <span className="text-rose-500">*</span>
+                                </label>
+                                <span className="text-xs font-medium text-teal-700">
+                                    {selectedEmployeeIds.length} of {activeEmployeeList.length} selected
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="relative">
+                                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search employee name or ID..."
+                                        value={bulkSearch}
+                                        onChange={(e) => setBulkSearch(e.target.value)}
+                                        className="w-full h-8 pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition"
+                                    />
+                                </div>
+                                <Select
+                                    size="sm"
+                                    options={branchOptions}
+                                    value={bulkBranchFilter}
+                                    onChange={(e) => setBulkBranchFilter(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+                                <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={allVisibleSelected}
+                                            onChange={toggleAllVisibleBulk}
+                                            className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600 cursor-pointer"
+                                        />
+                                        Select All ({bulkVisibleEmployees.length})
+                                    </label>
+                                    {selectedEmployeeIds.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedEmployeeIds([])}
+                                            className="text-[11px] font-medium text-slate-500 hover:text-rose-600 cursor-pointer"
+                                        >
+                                            Clear all
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="max-h-44 overflow-y-auto divide-y divide-slate-100">
+                                    {bulkVisibleEmployees.length === 0 ? (
+                                        <div className="py-4 text-center text-xs text-slate-400">
+                                            No matching active employees
+                                        </div>
+                                    ) : (
+                                        bulkVisibleEmployees.map((emp) => {
+                                            const checked = selectedEmployeeIds.includes(emp._id);
+                                            return (
+                                                <label
+                                                    key={emp._id}
+                                                    className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition hover:bg-slate-50 ${checked ? 'bg-teal-50/40' : ''}`}
+                                                >
+                                                    <span className="flex items-center gap-2.5 min-w-0">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checked}
+                                                            onChange={() => toggleBulkEmployee(emp._id)}
+                                                            className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700 focus:ring-teal-600 cursor-pointer"
+                                                        />
+                                                        <span className="font-medium text-slate-800 truncate capitalize">
+                                                            {emp.userid?.name || 'Unknown'}
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-[11px] text-slate-500 shrink-0 ml-2">
+                                                        {emp.empId || 'No ID'}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     ) : (
                         <SearchableSelect
                             label="Select Employee"
                             required
-                            disabled={Boolean(editingId)}
                             options={employeeOptions}
                             placeholder="Select Employee..."
                             searchPlaceholder="Search employee name or ID..."
@@ -511,7 +618,6 @@ const Leaveledger = () => {
                     <Select
                         label="Leave Policy"
                         required
-                        disabled={Boolean(editingId)}
                         options={policyOptions}
                         placeholder="Select Policy..."
                         value={form.policyId}
@@ -556,8 +662,10 @@ const Leaveledger = () => {
                 open={historyOpen}
                 onClose={() => setHistoryOpen(false)}
                 employee={historyEmployee}
+                canEdit={canEdit}
                 canDelete={canDelete}
                 onDeleted={fetchLeaveLedgerData}
+                onUpdated={fetchLeaveLedgerData}
             />
         </div>
     );
