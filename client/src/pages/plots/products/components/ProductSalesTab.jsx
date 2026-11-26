@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -48,6 +48,7 @@ const ProductSalesTab = ({
   const [showSaleModal, setShowSaleModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const canCreate = usePermission(['investment_booking', 'plot_booking'], 2);
+  const canEdit = usePermission('investment_booking', 3);
 
   // Form states for creating a new product sale/booking
   const [form, setForm] = useState({
@@ -437,6 +438,18 @@ const ProductSalesTab = ({
                             >
                               <Calculator size={14} />
                             </button>
+
+                            {/* 7. Edit Booking (Permission-gated: investment_booking update = 3) */}
+                            {canEdit && b.status !== 'CANCELLED' && (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/dashboard/plots/investment-booking/edit/${b._id}`)}
+                                className="p-1.5 rounded-lg transition border border-blue-200/80 bg-blue-50/40 text-blue-700 hover:bg-blue-100 cursor-pointer"
+                                title="Edit Investment Booking"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -821,18 +834,20 @@ const ProductSalesTab = ({
                     <span>Customer Ledger</span>
                   </button>
 
+                {canEdit && viewingBooking.status !== 'CANCELLED' && (
                   <button
                     type="button"
                     onClick={() => {
                       const id = viewingBooking._id;
                       setViewingBooking(null);
-                      navigate(`/dashboard/plots/products/edit/${id}`);
+                      navigate(`/dashboard/plots/investment-booking/edit/${id}`);
                     }}
                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
                   >
                     <Edit2 size={13} />
                     <span>Edit Booking</span>
                   </button>
+                )}
                 </div>
 
                 <button

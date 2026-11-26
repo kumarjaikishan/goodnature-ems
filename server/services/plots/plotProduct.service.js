@@ -1137,8 +1137,49 @@ class PlotProductService {
     if (fdMaturityPercent !== undefined) booking.fdMaturityPercent = Number(fdMaturityPercent);
     if (annualInterestRate !== undefined) booking.annualInterestRate = Number(annualInterestRate);
 
-    // Land Sourcing re-allocation if provided
-    if (landSourcing !== undefined && Array.isArray(landSourcing)) {
+    // Land Sourcing re-allocation only if actually changed
+    const normalizeSourcing = (list) =>
+      (Array.isArray(list) ? list : [])
+        .filter((s) => (Number(s?.allocatedSqFt) || 0) > 0)
+        .map((s) => ({
+          agreementId: String(s.agreementId?._id || s.agreementId || ''),
+          parcelId: s.parcelId ? String(s.parcelId) : '',
+          khesraNumber: String(s.khesraNumber || '').trim(),
+          allocatedSqFt: Math.round((Number(s.allocatedSqFt) || 0) * 100) / 100,
+        }))
+        .sort((a, b) => `${a.agreementId}:${a.parcelId}:${a.khesraNumber}`.localeCompare(`${b.agreementId}:${b.parcelId}:${b.khesraNumber}`));
+
+    if (
+      landSourcing !== undefined &&
+      Array.isArray(landSourcing) &&
+      JSON.stringify(normalizeSourcing(booking.landSourcing)) !== JSON.stringify(normalizeSourcing(landSourcing))
+    ) {
+      // Pre-validate new agreements & available stock before releasing old allocations
+      const releasedByAgr = new Map();
+      for (const src of booking.landSourcing || []) {
+        const sq = Number(src?.allocatedSqFt) || 0;
+        if (sq > 0 && src?.agreementId) {
+          const aid = String(src.agreementId?._id || src.agreementId);
+          releasedByAgr.set(aid, (releasedByAgr.get(aid) || 0) + sq);
+        }
+      }
+      for (const item of landSourcing) {
+        const numSqFt = Number(item?.allocatedSqFt) || 0;
+        if (!item?.agreementId || numSqFt <= 0) continue;
+        const agr = await KisanLandAgreement.findById(item.agreementId);
+        if (!agr) throw ApiError.badRequest(`Agreement #${item.agreementNumber || item.agreementId} not found`);
+        const curAvail =
+          agr.totalAvailableSqFt !== undefined && agr.totalAvailableSqFt !== null
+            ? agr.totalAvailableSqFt
+            : Math.max(0, (agr.totalSqFt || 0) - (agr.totalAllocatedSqFt || 0));
+        const effectiveAvail = curAvail + (releasedByAgr.get(String(agr._id)) || 0);
+        if (effectiveAvail < numSqFt) {
+          throw ApiError.badRequest(
+            `Insufficient stock in Agreement ${agr.agreementNumber}. Available: ${curAvail} SqFt, Requested: ${numSqFt} SqFt`
+          );
+        }
+      }
+
       // 1. Release existing land allocations
       if (Array.isArray(booking.landSourcing) && booking.landSourcing.length > 0) {
         for (const src of booking.landSourcing) {

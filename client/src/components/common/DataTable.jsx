@@ -46,6 +46,7 @@ export const DataTable = ({
   onRowClicked,
   pointerOnHover = false,
   footerComponent,
+  footerRow,
 }) => {
   // ── Pagination State ──
   const [currentPage, setCurrentPage] = useState(paginationDefaultPage);
@@ -366,6 +367,11 @@ export const DataTable = ({
               })
             )}
           </tbody>
+          {footerRow && displayData.length > 0 && (
+            <tfoot className="bg-slate-50 border-t-2 border-slate-200 text-xs font-semibold text-slate-800">
+              {typeof footerRow === 'function' ? footerRow({ displayData, data: sortedData }) : footerRow}
+            </tfoot>
+          )}
         </table>
       </div>
 

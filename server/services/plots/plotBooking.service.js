@@ -23,6 +23,115 @@ const plotConfigService = require('./plotConfig.service');
 const plotDeveloperService = require('./plotDeveloper.service');
 const { disburseRefundTransaction } = require('./plotRefundHelper');
 
+/**
+ * Keep agreement.landParcels parcel-level stock in sync on allocation (+delta) or release (-delta).
+ */
+function syncAgreementParcelStock(agr, src, deltaSqFt) {
+  if (!agr || !Array.isArray(agr.landParcels) || agr.landParcels.length === 0) return null;
+  const parcel =
+    (src.parcelId && agr.landParcels.find((p) => String(p._id) === String(src.parcelId))) ||
+    (src.khesraNumber && agr.landParcels.find((p) => p.khesraNumber === src.khesraNumber)) ||
+    (agr.landParcels.length === 1 ? agr.landParcels[0] : null);
+  if (!parcel) return null;
+
+  parcel.allocatedSqFt = Math.max(0, Math.round(((parcel.allocatedSqFt || 0) + deltaSqFt) * 100) / 100);
+  if (src.sourceType !== 'REGISTRY_DEED') {
+    parcel.unregisteredAllocatedSqFt = Math.max(
+      0,
+      Math.round(((parcel.unregisteredAllocatedSqFt || 0) + deltaSqFt) * 100) / 100
+    );
+    const unregAgreed =
+      parcel.unregisteredAgreedSqFt !== undefined
+        ? parcel.unregisteredAgreedSqFt
+        : Math.max(0, (parcel.totalSqFt || 0) - (parcel.registeredSqFt || 0));
+    parcel.unregisteredAvailableSqFt = Math.max(
+      0,
+      Math.round((unregAgreed - parcel.unregisteredAllocatedSqFt) * 100) / 100
+    );
+  }
+  parcel.availableSqFt = Math.max(0, Math.round(((parcel.totalSqFt || 0) - parcel.allocatedSqFt) * 100) / 100);
+  return parcel;
+}
+
+/**
+ * Returns true only if the land sourcing allocations actually changed (agreement, parcel, deed, or SqFt).
+ */
+function hasLandSourcingChanged(oldList = [], newList = []) {
+  const normalize = (list) =>
+    (Array.isArray(list) ? list : [])
+      .filter((s) => (Number(s?.allocatedSqFt) || 0) > 0)
+      .map((s) => ({
+        sourceType: s.sourceType || 'AGREEMENT',
+        agreementId: String(s.agreementId?._id || s.agreementId || ''),
+        parcelId: s.parcelId ? String(s.parcelId) : '',
+        deedId: s.deedId ? String(s.deedId) : '',
+        khesraNumber: String(s.khesraNumber || '').trim(),
+        allocatedSqFt: Math.round((Number(s.allocatedSqFt) || 0) * 100) / 100,
+      }))
+      .sort((a, b) =>
+        `${a.agreementId}:${a.parcelId}:${a.khesraNumber}`.localeCompare(
+          `${b.agreementId}:${b.parcelId}:${b.khesraNumber}`
+        )
+      );
+
+  return JSON.stringify(normalize(oldList)) !== JSON.stringify(normalize(newList));
+}
+
+/**
+ * Pre-validate all new landSourcing allocations BEFORE mutating old agreements or writing LandStockLedger.
+ * Accounts for stock that will be released from oldSourcing on the same agreement/deed.
+ */
+async function preValidateNewLandSourcing(oldSourcing = [], newSourcing = [], session = null) {
+  const releasedAgrMap = new Map();
+  const releasedDeedMap = new Map();
+
+  for (const oldSrc of oldSourcing) {
+    const oldSqFt = Number(oldSrc?.allocatedSqFt) || 0;
+    if (oldSqFt <= 0 || !oldSrc?.agreementId) continue;
+    const agrId = String(oldSrc.agreementId?._id || oldSrc.agreementId);
+    if (oldSrc.sourceType === 'REGISTRY_DEED' && oldSrc.deedId) {
+      const deedKey = `${agrId}:${String(oldSrc.deedId)}`;
+      releasedDeedMap.set(deedKey, (releasedDeedMap.get(deedKey) || 0) + oldSqFt);
+    } else {
+      releasedAgrMap.set(agrId, (releasedAgrMap.get(agrId) || 0) + oldSqFt);
+    }
+  }
+
+  for (const newSrc of newSourcing) {
+    const newSqFt = Number(newSrc?.allocatedSqFt) || 0;
+    if (newSqFt <= 0) continue;
+    const agrQuery = KisanLandAgreement.findById(newSrc.agreementId);
+    if (session) agrQuery.session(session);
+    const newAgr = await agrQuery;
+    if (!newAgr) throw ApiError.badRequest(`Land Agreement ${newSrc.agreementId} not found`);
+
+    const agrId = String(newAgr._id);
+    if (newSrc.sourceType === 'REGISTRY_DEED') {
+      const deed = newAgr.registryDeeds.find(
+        (d) => String(d._id) === String(newSrc.deedId) || d.deedNumber === newSrc.deedNumber
+      );
+      if (!deed) throw ApiError.badRequest(`Registry Deed ${newSrc.deedNumber} not found in Agreement ${newAgr.agreementNumber}`);
+      const effectiveAvail = (deed.availableSqFt || 0) + (releasedDeedMap.get(`${agrId}:${String(deed._id)}`) || 0);
+      if (effectiveAvail < newSqFt) {
+        throw ApiError.badRequest(
+          `Insufficient stock in Registry Deed ${deed.deedNumber}. Available: ${deed.availableSqFt} SqFt, Requested: ${newSqFt} SqFt`
+        );
+      }
+    } else {
+      const currentTotalAvail =
+        newAgr.totalAvailableSqFt !== undefined && newAgr.totalAvailableSqFt !== null
+          ? newAgr.totalAvailableSqFt
+          : Math.max(0, (newAgr.totalSqFt || 0) - (newAgr.totalAllocatedSqFt || 0));
+      const effectiveAvail = currentTotalAvail + (releasedAgrMap.get(agrId) || 0);
+      if (effectiveAvail < newSqFt) {
+        throw ApiError.badRequest(
+          `Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${currentTotalAvail} SqFt, Requested: ${newSqFt} SqFt`
+        );
+      }
+    }
+  }
+}
+
 class PlotBookingService {
   // ── BOOKING & HOLD ENGINE ───────────────────────────────────────
   async createBookingOrHold(data, processedBy) {
@@ -704,7 +813,8 @@ class PlotBookingService {
         : (booking.landSourcing || []);
 
       const isSourcingProvided = Array.isArray(updateData.landSourcing) && updateData.landSourcing.length > 0;
-      if (deltaSqFt !== 0 || isSourcingProvided) {
+      const isSourcingChanged = isSourcingProvided && hasLandSourcingChanged(booking.landSourcing, updateData.landSourcing);
+      if (deltaSqFt !== 0 || isSourcingChanged) {
         if (deltaSqFt !== 0) {
           plot.plotSize = newPlotSize;
           plot.effectiveRate = effectiveSqFtRate;
@@ -713,6 +823,7 @@ class PlotBookingService {
         }
 
         const oldSourcing = Array.isArray(booking.landSourcing) ? booking.landSourcing : [];
+        await preValidateNewLandSourcing(oldSourcing, newLandSourcing, session);
         for (const oldSrc of oldSourcing) {
           const oldSqFt = Number(oldSrc.allocatedSqFt) || 0;
           if (oldSqFt <= 0) continue;
@@ -732,6 +843,7 @@ class PlotBookingService {
             }
             oldAgr.totalAllocatedSqFt = Math.max(0, (oldAgr.totalAllocatedSqFt || 0) - oldSqFt);
             oldAgr.totalAvailableSqFt = Math.max(0, oldAgr.totalSqFt - oldAgr.totalAllocatedSqFt);
+            syncAgreementParcelStock(oldAgr, oldSrc, -oldSqFt);
             await oldAgr.save({ session });
 
             await new LandStockLedger({
@@ -741,7 +853,7 @@ class PlotBookingService {
               deedNumber: oldSrc.deedNumber || '',
               bookingId: booking._id,
               bookingNumber: booking.bookingNumber,
-              customerName: booking.customerName || '',
+              customerName: customerBefore?.name || booking.customerId?.name || booking.customerName || '',
               plotNumber: plot.plotNumber || '',
               transactionType: 'BOOKING_RESTRUCTURING_DELTA',
               entryType: 'CREDIT',
@@ -775,39 +887,54 @@ class PlotBookingService {
 
             newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
             newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            const matchedParcel = syncAgreementParcelStock(newAgr, newSrc, newSqFt);
             await newAgr.save({ session });
 
             processedNewSourcing.push({
               sourceType: 'REGISTRY_DEED',
               agreementId: newAgr._id,
               agreementNumber: newAgr.agreementNumber,
+              parcelId: matchedParcel?._id || newSrc.parcelId || null,
               deedId: deed._id,
               deedNumber: deed.deedNumber,
-              mauja: newAgr.mauja,
-              khataNumber: newAgr.khataNumber,
-              khesraNumber: newAgr.khesraNumber,
+              mauja: matchedParcel?.mauja || newSrc.mauja || newAgr.mauja,
+              thanaNumber: matchedParcel?.thanaNumber || newSrc.thanaNumber || newAgr.thanaNumber || '',
+              khataNumber: matchedParcel?.khataNumber || newSrc.khataNumber || newAgr.khataNumber,
+              khesraNumber: matchedParcel?.khesraNumber || newSrc.khesraNumber || newAgr.khesraNumber,
               allocatedSqFt: newSqFt,
               allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
             });
           } else {
-            if ((newAgr.unregisteredAvailableSqFt || 0) < newSqFt) {
-              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${newAgr.unregisteredAvailableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            const availSqFt =
+              newAgr.totalAvailableSqFt !== undefined && newAgr.totalAvailableSqFt !== null
+                ? newAgr.totalAvailableSqFt
+                : Math.max(0, (newAgr.totalSqFt || 0) - (newAgr.totalAllocatedSqFt || 0));
+            if (availSqFt < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${availSqFt} SqFt, Requested: ${newSqFt} SqFt`);
             }
-            newAgr.unregisteredAllocatedSqFt = (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt;
-            newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
             newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
-            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            newAgr.totalAvailableSqFt = Math.max(0, (newAgr.totalSqFt || 0) - newAgr.totalAllocatedSqFt);
+            if (newAgr.unregisteredAgreedSqFt) {
+              newAgr.unregisteredAllocatedSqFt = Math.min(
+                newAgr.unregisteredAgreedSqFt,
+                (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt
+              );
+              newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
+            }
+            const matchedParcel = syncAgreementParcelStock(newAgr, newSrc, newSqFt);
             await newAgr.save({ session });
 
             processedNewSourcing.push({
               sourceType: 'AGREEMENT',
               agreementId: newAgr._id,
               agreementNumber: newAgr.agreementNumber,
+              parcelId: matchedParcel?._id || newSrc.parcelId || null,
               deedId: null,
               deedNumber: '',
-              mauja: newAgr.mauja,
-              khataNumber: newAgr.khataNumber,
-              khesraNumber: newAgr.khesraNumber,
+              mauja: matchedParcel?.mauja || newSrc.mauja || newAgr.mauja,
+              thanaNumber: matchedParcel?.thanaNumber || newSrc.thanaNumber || newAgr.thanaNumber || '',
+              khataNumber: matchedParcel?.khataNumber || newSrc.khataNumber || newAgr.khataNumber,
+              khesraNumber: matchedParcel?.khesraNumber || newSrc.khesraNumber || newAgr.khesraNumber,
               allocatedSqFt: newSqFt,
               allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
             });
@@ -820,7 +947,7 @@ class PlotBookingService {
             deedNumber: newSrc.deedNumber || '',
             bookingId: booking._id,
             bookingNumber: booking.bookingNumber,
-            customerName: booking.customerName || '',
+            customerName: customerBefore?.name || booking.customerId?.name || booking.customerName || '',
             plotNumber: plot.plotNumber || '',
             transactionType: 'BOOKING_RESTRUCTURING_DELTA',
             entryType: 'DEBIT',
@@ -1145,6 +1272,7 @@ class PlotBookingService {
             }
             agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
             agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            syncAgreementParcelStock(agr, src, -numSqFt);
             await agr.save({ session });
 
             await new LandStockLedger({
@@ -1651,7 +1779,7 @@ class PlotBookingService {
         populate: { path: 'seriesId' },
       })
       .populate('projectId')
-      .populate('landSourcing.agreementId', 'agreementNumber mauja thanaNumber khataNumber khesraNumber jamabandiNumber');
+      .populate('landSourcing.agreementId', 'agreementNumber mauja thanaNumber khataNumber khesraNumber jamabandiNumber landParcels');
 
     if (!booking) throw ApiError.notFound('Booking not found');
 
@@ -1963,8 +2091,9 @@ class PlotBookingService {
         booking.downpaymentDays = booking.downpaymentMonths * 30;
       }
 
-      if (Array.isArray(landSourcing) && landSourcing.length > 0) {
+      if (Array.isArray(landSourcing) && landSourcing.length > 0 && hasLandSourcingChanged(booking.landSourcing, landSourcing)) {
         const oldSourcing = Array.isArray(booking.landSourcing) ? booking.landSourcing : [];
+        await preValidateNewLandSourcing(oldSourcing, landSourcing, session);
 
         for (const oldSrc of oldSourcing) {
           const oldSqFt = Number(oldSrc.allocatedSqFt) || 0;
@@ -1985,6 +2114,7 @@ class PlotBookingService {
             }
             oldAgr.totalAllocatedSqFt = Math.max(0, (oldAgr.totalAllocatedSqFt || 0) - oldSqFt);
             oldAgr.totalAvailableSqFt = Math.max(0, oldAgr.totalSqFt - oldAgr.totalAllocatedSqFt);
+            syncAgreementParcelStock(oldAgr, oldSrc, -oldSqFt);
             await oldAgr.save({ session });
 
             await new LandStockLedger({
@@ -1994,7 +2124,7 @@ class PlotBookingService {
               deedNumber: oldSrc.deedNumber || '',
               bookingId: booking._id,
               bookingNumber: booking.bookingNumber,
-              customerName: booking.customerName || '',
+              customerName: customerBefore?.name || booking.customerId?.name || booking.customerName || '',
               plotNumber: booking.plotId?.plotNumber || '',
               transactionType: 'MANUAL_ADJUSTMENT',
               entryType: 'CREDIT',
@@ -2028,39 +2158,54 @@ class PlotBookingService {
 
             newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
             newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            const matchedParcel = syncAgreementParcelStock(newAgr, newSrc, newSqFt);
             await newAgr.save({ session });
 
             processedNewSourcing.push({
               sourceType: 'REGISTRY_DEED',
               agreementId: newAgr._id,
               agreementNumber: newAgr.agreementNumber,
+              parcelId: matchedParcel?._id || newSrc.parcelId || null,
               deedId: deed._id,
               deedNumber: deed.deedNumber,
-              mauja: newAgr.mauja,
-              khataNumber: newAgr.khataNumber,
-              khesraNumber: newAgr.khesraNumber,
+              mauja: matchedParcel?.mauja || newSrc.mauja || newAgr.mauja,
+              thanaNumber: matchedParcel?.thanaNumber || newSrc.thanaNumber || newAgr.thanaNumber || '',
+              khataNumber: matchedParcel?.khataNumber || newSrc.khataNumber || newAgr.khataNumber,
+              khesraNumber: matchedParcel?.khesraNumber || newSrc.khesraNumber || newAgr.khesraNumber,
               allocatedSqFt: newSqFt,
               allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
             });
           } else {
-            if ((newAgr.unregisteredAvailableSqFt || 0) < newSqFt) {
-              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${newAgr.unregisteredAvailableSqFt} SqFt, Requested: ${newSqFt} SqFt`);
+            const availSqFt =
+              newAgr.totalAvailableSqFt !== undefined && newAgr.totalAvailableSqFt !== null
+                ? newAgr.totalAvailableSqFt
+                : Math.max(0, (newAgr.totalSqFt || 0) - (newAgr.totalAllocatedSqFt || 0));
+            if (availSqFt < newSqFt) {
+              throw ApiError.badRequest(`Insufficient stock in Agreement ${newAgr.agreementNumber}. Available: ${availSqFt} SqFt, Requested: ${newSqFt} SqFt`);
             }
-            newAgr.unregisteredAllocatedSqFt = (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt;
-            newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
             newAgr.totalAllocatedSqFt = (newAgr.totalAllocatedSqFt || 0) + newSqFt;
-            newAgr.totalAvailableSqFt = Math.max(0, newAgr.totalSqFt - newAgr.totalAllocatedSqFt);
+            newAgr.totalAvailableSqFt = Math.max(0, (newAgr.totalSqFt || 0) - newAgr.totalAllocatedSqFt);
+            if (newAgr.unregisteredAgreedSqFt) {
+              newAgr.unregisteredAllocatedSqFt = Math.min(
+                newAgr.unregisteredAgreedSqFt,
+                (newAgr.unregisteredAllocatedSqFt || 0) + newSqFt
+              );
+              newAgr.unregisteredAvailableSqFt = Math.max(0, newAgr.unregisteredAgreedSqFt - newAgr.unregisteredAllocatedSqFt);
+            }
+            const matchedParcel = syncAgreementParcelStock(newAgr, newSrc, newSqFt);
             await newAgr.save({ session });
 
             processedNewSourcing.push({
               sourceType: 'AGREEMENT',
               agreementId: newAgr._id,
               agreementNumber: newAgr.agreementNumber,
+              parcelId: matchedParcel?._id || newSrc.parcelId || null,
               deedId: null,
               deedNumber: '',
-              mauja: newAgr.mauja,
-              khataNumber: newAgr.khataNumber,
-              khesraNumber: newAgr.khesraNumber,
+              mauja: matchedParcel?.mauja || newSrc.mauja || newAgr.mauja,
+              thanaNumber: matchedParcel?.thanaNumber || newSrc.thanaNumber || newAgr.thanaNumber || '',
+              khataNumber: matchedParcel?.khataNumber || newSrc.khataNumber || newAgr.khataNumber,
+              khesraNumber: matchedParcel?.khesraNumber || newSrc.khesraNumber || newAgr.khesraNumber,
               allocatedSqFt: newSqFt,
               allocatedDismil: Math.round((newSqFt / 435.6) * 1000) / 1000,
             });
@@ -2073,7 +2218,7 @@ class PlotBookingService {
             deedNumber: newSrc.deedNumber || '',
             bookingId: booking._id,
             bookingNumber: booking.bookingNumber,
-            customerName: booking.customerName || '',
+            customerName: customerBefore?.name || booking.customerId?.name || booking.customerName || '',
             plotNumber: booking.plotId?.plotNumber || '',
             transactionType: 'MANUAL_ADJUSTMENT',
             entryType: 'DEBIT',
@@ -2539,6 +2684,7 @@ class PlotBookingService {
             }
             agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
             agr.totalAvailableSqFt = Math.max(0, agr.totalSqFt - agr.totalAllocatedSqFt);
+            syncAgreementParcelStock(agr, src, -numSqFt);
             await agr.save({ session });
 
             await new LandStockLedger({
@@ -2662,6 +2808,7 @@ class PlotBookingService {
             }
             agr.totalAllocatedSqFt = Math.max(0, (agr.totalAllocatedSqFt || 0) - numSqFt);
             agr.totalAvailableSqFt = Math.max(0, (agr.totalSqFt || 0) - agr.totalAllocatedSqFt);
+            syncAgreementParcelStock(agr, src, -numSqFt);
             await agr.save({ session });
 
             await new LandStockLedger({

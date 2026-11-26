@@ -660,10 +660,12 @@ const CreateAgreementModal = ({
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Thana Number</label>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         placeholder="Thana No."
                         className="h-8 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-lg px-2 text-xs font-medium outline-none"
                         value={parcel.thanaNumber}
-                        onChange={(e) => handleParcelChange(idx, 'thanaNumber', e.target.value)}
+                        onChange={(e) => handleParcelChange(idx, 'thanaNumber', e.target.value.replace(/\D/g, ''))}
                       />
                     </div>
                     <div>
@@ -691,22 +693,26 @@ const CreateAgreementModal = ({
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Khata Number *</label>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         required
                         placeholder="Khata No."
                         className="h-8 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-lg px-2 text-xs font-medium outline-none"
                         value={parcel.khataNumber}
-                        onChange={(e) => handleParcelChange(idx, 'khataNumber', e.target.value)}
+                        onChange={(e) => handleParcelChange(idx, 'khataNumber', e.target.value.replace(/\D/g, ''))}
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Khesra / Plot No *</label>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         required
                         placeholder="Khesra / Plot No."
                         className="h-8 w-full bg-white border border-slate-300 focus:ring-2 focus:ring-teal-600 rounded-lg px-2 text-xs font-bold text-teal-800 outline-none"
                         value={parcel.khesraNumber}
-                        onChange={(e) => handleParcelChange(idx, 'khesraNumber', e.target.value)}
+                        onChange={(e) => handleParcelChange(idx, 'khesraNumber', e.target.value.replace(/\D/g, ''))}
                       />
                     </div>
 

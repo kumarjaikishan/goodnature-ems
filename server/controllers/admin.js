@@ -1182,22 +1182,51 @@ const deleteBranch = async (req, res, next) => {
             return next({ status: 404, message: "Branch not found" });
         }
 
-        // Check if employees exist under this branch
-        const empCount = await employeeModal.countDocuments({ branchId });
-        if (empCount > 0) {
-            return res.status(400).json({
-                message: `Cannot delete branch "${existingBranch.name}". There are ${empCount} employee(s) assigned to this branch. Please reassign or delete them first.`
-            });
-        }
+        // Check all models & assignments associated with this branch before allowing deletion
+        const assignedManagers = await usermodal.countDocuments({ branchIds: branchId });
+        const hasBranchPartners =
+            Boolean(existingBranch.branchPartnerId) ||
+            (Array.isArray(existingBranch.branchPartnerIds) && existingBranch.branchPartnerIds.length > 0) ||
+            (Array.isArray(existingBranch.managerIds) && existingBranch.managerIds.length > 0);
 
-        // Remove this branch from all managers
-        await usermodal.updateMany(
-            { branchIds: branchId },
-            { $pull: { branchIds: branchId } }
+        const associationChecks = [
+            { model: employeeModal, label: 'employee(s)' },
+            { model: departmentModal, label: 'department(s)' },
+            { modelName: 'PlotBooking', label: 'plot booking(s)' },
+            { modelName: 'PlotProductBooking', label: 'investment booking(s)' },
+            { modelName: 'PlotReceipt', label: 'collection receipt(s)' },
+            { modelName: 'PlotClosing', label: 'incentive closing(s)' },
+            { modelName: 'PlotSponsorCommission', label: 'sponsor commission(s)' },
+            { modelName: 'Voucher', label: 'voucher(s)' },
+            { modelName: 'Ledger', label: 'ledger account(s)' },
+            { modelName: 'FundTransfer', label: 'fund transfer(s)' },
+            { modelName: 'Advance', label: 'advance record(s)' },
+            { modelName: 'Payroll', label: 'payroll record(s)' },
+            { modelName: 'Attendance', label: 'attendance record(s)' },
+            { modelName: 'Leave', label: 'leave request(s)' },
+            { modelName: 'LeaveBalance', label: 'leave balance(s)' },
+            { modelName: 'WeeklyOffLedger', label: 'weekly-off ledger(s)' },
+        ];
+
+        const counts = await Promise.all(
+            associationChecks.map(async (chk) => {
+                const M = chk.model || (mongoose.models[chk.modelName] ? mongoose.model(chk.modelName) : null);
+                if (!M) return null;
+                const count = await M.countDocuments({ branchId });
+                return count > 0 ? `${count} ${chk.label}` : null;
+            })
         );
 
-        // Delete all departments under this branch
-        await departmentModal.deleteMany({ branchId });
+        const blockers = counts.filter(Boolean);
+        if (assignedManagers > 0 || hasBranchPartners) {
+            blockers.push(`${assignedManagers || 1} assigned manager/partner(s)`);
+        }
+
+        if (blockers.length > 0) {
+            return res.status(400).json({
+                message: `Cannot delete branch "${existingBranch.name}". Associated records found: ${blockers.join(', ')}. Please reassign or remove them first.`
+            });
+        }
 
         // Delete the branch
         await branch.findByIdAndDelete(branchId);

@@ -69,14 +69,20 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
         };
     }, [openmodal, inp?.employeeId, inp?.date]);
 
-    // Reset existing record when modal closes
+    // Keep attendance date locked to today when modal opens, and reset state when closed
     useEffect(() => {
-        if (!openmodal) {
+        if (openmodal) {
+            setinp(prev => (
+                prev?.date && dayjs(prev.date).isSame(dayjs(), 'day')
+                    ? prev
+                    : { ...prev, date: dayjs() }
+            ));
+        } else {
             setExistingRecord(null);
             setEmployeeSearch('');
             setEmployeeDropdownOpen(false);
         }
-    }, [openmodal]);
+    }, [openmodal, setinp]);
 
     const activeEmployees = useMemo(
         () => (employee || []).filter(e => e.status !== false),
@@ -154,11 +160,8 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                         size="sm"
                         label="Attendance Date"
                         required
-                        value={inp?.date ? (dayjs.isDayjs(inp.date) ? (inp.date.isValid() ? inp.date.format('YYYY-MM-DD') : '') : dayjs(inp.date).isValid() ? dayjs(inp.date).format('YYYY-MM-DD') : '') : ''}
-                        onChange={(e) => {
-                            const val = e?.target?.value !== undefined ? e.target.value : e;
-                            setinp({ ...inp, date: val ? dayjs(val) : null });
-                        }}
+                        disabled
+                        value={dayjs().format('YYYY-MM-DD')}
                     />
 
                     {/* Custom Searchable Employee Picker */}

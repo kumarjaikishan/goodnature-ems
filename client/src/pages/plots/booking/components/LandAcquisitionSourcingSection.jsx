@@ -315,6 +315,8 @@ export const LandAcquisitionSourcingSection = ({
       ) : (
         <div className="space-y-3 mt-1">
           {landSourcing.map((src, idx) => {
+            const curAgreementObj = src.agreementId && typeof src.agreementId === 'object' ? src.agreementId : null;
+            const curAgreementId = curAgreementObj ? String(curAgreementObj._id || '') : String(src.agreementId || '');
             const curKhata = src.khataNumber ? String(src.khataNumber).trim() : '';
             const curKhesra = src.khesraNumber ? String(src.khesraNumber).trim() : '';
 
@@ -366,16 +368,24 @@ export const LandAcquisitionSourcingSection = ({
                   }
                 }
               }
+              if (curAgreementId && !seen.has(curAgreementId)) {
+                const agrLabel = src.agreementNumber || curAgreementObj?.agreementNumber || 'Selected Agreement';
+                list.unshift({
+                  value: curAgreementId,
+                  label: `${agrLabel} (Allocated: ${src.allocatedSqFt || 0} SqFt)`,
+                  subtitle: 'Currently linked to this booking',
+                });
+              }
               return list;
             })();
 
             // Find current active unit for stock metrics
             const activeUnit = allParcelUnits.find((u) => {
-              if (src.agreementId && String(u.agreementId) !== String(src.agreementId)) return false;
+              if (curAgreementId && String(u.agreementId) !== curAgreementId) return false;
               if (curKhesra && u.khesraNumber !== curKhesra) return false;
               if (curKhata && u.khataNumber !== curKhata) return false;
               return true;
-            }) || allParcelUnits.find((u) => String(u.agreementId) === String(src.agreementId));
+            }) || allParcelUnits.find((u) => String(u.agreementId) === curAgreementId);
 
             const maxAvailSqFt = activeUnit?.availableSqFt ?? 0;
             const maxAvailDismil = activeUnit?.availableDismil ?? (maxAvailSqFt ? (maxAvailSqFt / 435.6).toFixed(2) : 0);
@@ -431,7 +441,7 @@ export const LandAcquisitionSourcingSection = ({
                       placeholder={src.khesraNumber || khesraOptions.length === 0 ? '-- Select Agreement --' : 'Select Khesra first'}
                       searchPlaceholder="Search Agreement..."
                       options={agreementOptions}
-                      value={src.agreementId ? String(src.agreementId) : ''}
+                      value={curAgreementId}
                       onChange={(val) => handleAgreementChange(idx, val)}
                       disabled={!src.khesraNumber && khesraOptions.length > 0}
                       allowClear={true}

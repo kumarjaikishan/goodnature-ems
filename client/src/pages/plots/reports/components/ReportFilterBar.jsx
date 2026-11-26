@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Search } from 'lucide-react';
 import Select from '../../../../components/ui/Select';
 
@@ -30,9 +30,10 @@ const ReportFilterBar = ({
               <Search size={16} />
             </div>
           </div>
-          <div className="flex flex-wrap sm:flex-nowrap gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap gap-3 items-center">
             <div className="w-full sm:w-40">
               <Select
+                size="sm"
                 value={schemeFilter}
                 onChange={(e) => setSchemeFilter(e.target.value)}
                 options={[
@@ -44,16 +45,17 @@ const ReportFilterBar = ({
             </div>
             <div className="w-full sm:w-40">
               <Select
+                size="sm"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'PENDING', label: 'PENDING' },
-                  { value: 'ACTIVE', label: 'ACTIVE' },
-                  { value: 'HOLD', label: 'HOLD' },
-                  { value: 'COMPLETED', label: 'COMPLETED' },
-                  { value: 'REJECTED', label: 'REJECTED' },
-                  { value: 'CANCELLED', label: 'CANCELLED' },
+                  { value: '', label: 'All Status' },
+                  { value: 'PENDING', label: 'Pending' },
+                  { value: 'ACTIVE', label: 'Active' },
+                  { value: 'HOLD', label: 'Hold' },
+                  { value: 'COMPLETED', label: 'Completed' },
+                  { value: 'REJECTED', label: 'Rejected' },
+                  { value: 'CANCELLED', label: 'Cancelled' },
                 ]}
               />
             </div>
@@ -76,9 +78,10 @@ const ReportFilterBar = ({
               <Search size={16} />
             </div>
           </div>
-          <div className="flex flex-wrap sm:flex-nowrap gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap gap-3 items-center">
             <div className="w-full sm:w-40">
               <Select
+                size="sm"
                 value={schemeFilter}
                 onChange={(e) => setSchemeFilter(e.target.value)}
                 options={[
@@ -90,12 +93,13 @@ const ReportFilterBar = ({
             </div>
             <div className="w-full sm:w-40">
               <Select
+                size="sm"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 options={[
                   { value: '', label: 'All Due Status' },
-                  { value: 'DUE', label: 'DUE' },
-                  { value: 'COMPLETED', label: 'COMPLETED' },
+                  { value: 'DUE', label: 'Due' },
+                  { value: 'COMPLETED', label: 'Completed' },
                 ]}
               />
             </div>
@@ -120,6 +124,7 @@ const ReportFilterBar = ({
           </div>
           <div className="w-full sm:w-48">
             <Select
+              size="sm"
               value={balanceFilter}
               onChange={(e) => setBalanceFilter(e.target.value)}
               options={[

@@ -35,28 +35,20 @@ const BranchManagerPage = () => {
             dangerMode: true,
         }).then(async (willDelete) => {
             if (willDelete) {
-                let toastId = toast.loading("Deleting branch...");
+                const toastId = toast.loading("Deleting branch...");
                 try {
                     const res = await apiClient({
                         url: "deleteBranch",
                         method: "POST",
                         body: { _id: data._id }
                     });
-                    toast.update(toastId, {
-                        render: res.message || "Branch deleted successfully",
-                        type: "success",
-                        isLoading: false,
-                        autoClose: 1800,
-                    });
+                    toast.dismiss(toastId);
+                    toast.success(res.message || "Branch deleted successfully");
                     dispatch(FirstFetch());
                 } catch (err) {
                     console.error("Error deleting branch:", err);
-                    toast.update(toastId, {
-                        render: err.message || "Failed to delete branch",
-                        type: "warning",
-                        isLoading: false,
-                        autoClose: 2500,
-                    });
+                    toast.dismiss(toastId);
+                    toast.error(err.message || "Failed to delete branch");
                 }
             }
         });

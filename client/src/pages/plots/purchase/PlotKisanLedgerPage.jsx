@@ -268,11 +268,11 @@ const PlotKisanLedgerPage = () => {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xl font-black text-slate-900">{agreement?.agreementNumber}</span>
+              <span className="font-mono text-xl font-bold text-slate-900">{agreement?.agreementNumber}</span>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                   agreement?.status === 'FULLY_REGISTERED'
-                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    ? 'bg-teal-50 text-teal-700 border border-teal-200'
                     : agreement?.status === 'PARTIALLY_REGISTERED'
                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -291,7 +291,7 @@ const PlotKisanLedgerPage = () => {
           {canCreateDeed && (
             <button
               onClick={openCreateDeedModal}
-              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+              className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs"
             >
               <ShieldCheck size={15} /> + Add Registry Deed
             </button>
@@ -319,7 +319,7 @@ const PlotKisanLedgerPage = () => {
       <div className="hidden print:block border-b border-slate-300 pb-4 mb-4">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-xl font-black text-slate-900 uppercase">GOOD NATURE EMS</h1>
+            <h1 className="text-xl font-bold text-slate-900 uppercase">GOOD NATURE EMS</h1>
             <p className="text-xs text-slate-600">Farmer Land Acquisition & Payment Statement</p>
           </div>
           <div className="text-right font-mono text-xs">
@@ -332,7 +332,7 @@ const PlotKisanLedgerPage = () => {
       {/* ── HERO FINANCIAL SUMMARY CARDS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Agreed Value (Credit) */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
+        <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
               Total Agreed Value (Credit)
@@ -341,7 +341,7 @@ const PlotKisanLedgerPage = () => {
               <DollarSign size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-slate-900 font-mono mt-2">
+          <h3 className="text-2xl font-bold text-slate-900 font-mono mt-2">
             ₹{(financialSummary?.totalCost || 0).toLocaleString('en-IN')}
           </h3>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -350,7 +350,7 @@ const PlotKisanLedgerPage = () => {
         </div>
 
         {/* Total Paid to Farmer (Debit) */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
+        <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">
               Total Paid to Kisan (Debit)
@@ -359,7 +359,7 @@ const PlotKisanLedgerPage = () => {
               <CreditCard size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-emerald-700 font-mono mt-2">
+          <h3 className="text-2xl font-bold text-emerald-700 font-mono mt-2">
             ₹{(financialSummary?.totalPaid || 0).toLocaleString('en-IN')}
           </h3>
           <p className="text-[11px] text-emerald-600 mt-1">
@@ -368,7 +368,7 @@ const PlotKisanLedgerPage = () => {
         </div>
 
         {/* Balance Due */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
+        <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">
               Outstanding Balance Due
@@ -377,7 +377,7 @@ const PlotKisanLedgerPage = () => {
               <DollarSign size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-amber-800 font-mono mt-2">
+          <h3 className="text-2xl font-bold text-amber-800 font-mono mt-2">
             ₹{(financialSummary?.balanceDue || 0).toLocaleString('en-IN')}
           </h3>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -386,40 +386,40 @@ const PlotKisanLedgerPage = () => {
         </div>
 
         {/* Total Registered Deeds Count & Value */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
+        <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-700">
               Registered Deeds
             </span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-700 border border-purple-200">
+            <div className="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-200">
               <ShieldCheck size={18} />
             </div>
           </div>
-          <h3 className="text-2xl font-black text-purple-900 font-mono mt-2">
+          <h3 className="text-2xl font-bold text-teal-900 font-mono mt-2">
             {agreement?.registryDeeds?.length || 0} <span className="text-xs font-semibold text-slate-500">Deed(s)</span>
           </h3>
-          <p className="text-[11px] text-purple-700 mt-1">
+          <p className="text-[11px] text-teal-700 mt-1">
             Reg: {agreement?.totalRegisteredDismil || 0} Dismil Converted
           </p>
         </div>
       </div>
 
       {/* ── LAND STOCK & BOOKING ALLOCATION STATS (Exact user requested stats) ── */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
+      <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-xs">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200 text-xs">
           <div>
             <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">
               Total Agreed Area
             </span>
-            <span className="font-black text-slate-900 text-base font-mono block mt-0.5">
+            <span className="font-bold text-slate-900 text-base font-mono block mt-0.5">
               {agreement?.araziDismil} Dismil <span className="text-xs font-medium text-slate-500">({agreement?.totalSqFt} SqFt)</span>
             </span>
           </div>
           <div>
-            <span className="text-[10px] text-purple-600 block uppercase font-bold tracking-wider">
+            <span className="text-[10px] text-teal-600 block uppercase font-bold tracking-wider">
               Registered Area
             </span>
-            <span className="font-black text-purple-700 text-base font-mono block mt-0.5">
+            <span className="font-bold text-teal-700 text-base font-mono block mt-0.5">
               {agreement?.totalRegisteredDismil || 0} Dismil
             </span>
           </div>
@@ -427,7 +427,7 @@ const PlotKisanLedgerPage = () => {
             <span className="text-[10px] text-amber-600 block uppercase font-bold tracking-wider">
               Allocated to Bookings
             </span>
-            <span className="font-black text-amber-700 text-base font-mono block mt-0.5">
+            <span className="font-bold text-amber-700 text-base font-mono block mt-0.5">
               {(agreement?.totalAllocatedSqFt || 0).toLocaleString('en-IN')} SqFt
             </span>
           </div>
@@ -435,7 +435,7 @@ const PlotKisanLedgerPage = () => {
             <span className="text-[10px] text-emerald-600 block uppercase font-bold tracking-wider">
               Free Available Stock
             </span>
-            <span className="font-black text-emerald-700 text-base font-mono block mt-0.5">
+            <span className="font-bold text-emerald-700 text-base font-mono block mt-0.5">
               {(agreement?.totalAvailableSqFt || 0).toLocaleString('en-IN')} SqFt
             </span>
           </div>
@@ -443,7 +443,7 @@ const PlotKisanLedgerPage = () => {
       </div>
 
       {/* ── LAND & FARMER PARTICULARS ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
         <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
           <MapPin size={16} className="text-teal-700" />
           Land & Farmer Acquisition Particulars
@@ -547,7 +547,7 @@ const PlotKisanLedgerPage = () => {
           onClick={() => setActiveTab('deeds')}
           className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === 'deeds'
-              ? 'border-purple-700 text-purple-900'
+              ? 'border-teal-700 text-teal-900'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -574,7 +574,7 @@ const PlotKisanLedgerPage = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
@@ -656,7 +656,7 @@ const PlotKisanLedgerPage = () => {
                       <td className="p-3.5 text-right font-mono text-slate-800 text-sm">
                         ₹{totalCredit.toLocaleString('en-IN')}
                       </td>
-                      <td className="p-3.5 text-right font-mono text-amber-800 text-sm font-black">
+                      <td className="p-3.5 text-right font-mono text-amber-800 text-sm font-bold">
                         ₹{(financialSummary?.balanceDue || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="p-3.5"></td>
@@ -673,7 +673,7 @@ const PlotKisanLedgerPage = () => {
           TAB 2: LAND STOCK ALLOCATION AUDIT (Debit, Credit, Balance Stock)
       ════════════════════════════════════════════════════════════════ */}
       {activeTab === 'stock' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
@@ -762,12 +762,12 @@ const PlotKisanLedgerPage = () => {
       {activeTab === 'parcels' && (
         <div className="space-y-4">
           {/* Summary Banner for Parcels */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-teal-50/60 p-4 rounded-2xl border border-teal-200 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-teal-50/60 p-4 rounded-lg border border-teal-200 text-xs">
             <div>
               <span className="text-[10px] text-teal-700 block uppercase font-bold tracking-wider">
                 Total Land Parcels / Plots
               </span>
-              <span className="font-black text-teal-950 text-base font-mono block mt-0.5">
+              <span className="font-bold text-teal-950 text-base font-mono block mt-0.5">
                 {parcels.length} Plot{parcels.length === 1 ? '' : 's'}
               </span>
             </div>
@@ -775,7 +775,7 @@ const PlotKisanLedgerPage = () => {
               <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-wider">
                 Total Agreed Area
               </span>
-              <span className="font-black text-slate-900 text-base font-mono block mt-0.5">
+              <span className="font-bold text-slate-900 text-base font-mono block mt-0.5">
                 {agreement?.totalSqFt?.toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-slate-500">({agreement?.araziDismil} Dismil)</span>
               </span>
             </div>
@@ -783,7 +783,7 @@ const PlotKisanLedgerPage = () => {
               <span className="text-[10px] text-amber-700 block uppercase font-bold tracking-wider">
                 Total Allocated Area
               </span>
-              <span className="font-black text-amber-900 text-base font-mono block mt-0.5">
+              <span className="font-bold text-amber-900 text-base font-mono block mt-0.5">
                 {(agreement?.totalAllocatedSqFt || 0).toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-amber-700">({(((agreement?.totalAllocatedSqFt || 0) / 435.6)).toFixed(2)} Dismil)</span>
               </span>
             </div>
@@ -791,14 +791,14 @@ const PlotKisanLedgerPage = () => {
               <span className="text-[10px] text-emerald-700 block uppercase font-bold tracking-wider">
                 Total Free Available Stock
               </span>
-              <span className="font-black text-emerald-900 text-base font-mono block mt-0.5">
+              <span className="font-bold text-emerald-900 text-base font-mono block mt-0.5">
                 {(agreement?.totalAvailableSqFt || 0).toLocaleString('en-IN')} SqFt <span className="text-xs font-medium text-emerald-700">({(((agreement?.totalAvailableSqFt || 0) / 435.6)).toFixed(2)} Dismil)</span>
               </span>
             </div>
           </div>
 
           {/* Table of Plot / Parcel Breakdown */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
@@ -822,11 +822,9 @@ const PlotKisanLedgerPage = () => {
                     </tr>
                   ) : (
                     parcels.map((p, idx) => {
-                      const parcelTotalSqFt = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6) : 0);
+                      const parcelTotalSqFt = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6 * 100) / 100 : 0);
                       const parcelAllocatedSqFt = p.allocatedSqFt || 0;
-                      const parcelAvailSqFt = p.availableSqFt !== undefined && p.availableSqFt !== null
-                        ? p.availableSqFt
-                        : Math.max(0, parcelTotalSqFt - parcelAllocatedSqFt);
+                      const parcelAvailSqFt = Math.max(0, Math.round((parcelTotalSqFt - parcelAllocatedSqFt) * 100) / 100);
                       const percentAllocated = parcelTotalSqFt > 0 ? Math.min(100, Math.round((parcelAllocatedSqFt / parcelTotalSqFt) * 100)) : 0;
                       const isFullyBooked = parcelAvailSqFt <= 0;
 
@@ -836,8 +834,8 @@ const PlotKisanLedgerPage = () => {
                           
                           {/* Plot / Khesra No */}
                           <td className="p-3.5">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-50 text-teal-900 border border-teal-200 font-black font-mono text-xs">
-                              Plot #{p.khesraNumber || 'N/A'}
+                            <span className="font-bold text-slate-800 font-mono text-xs">
+                              {p.khesraNumber || 'N/A'}
                             </span>
                           </td>
 
@@ -881,7 +879,7 @@ const PlotKisanLedgerPage = () => {
 
                           {/* Remaining Available Area */}
                           <td className="p-3.5 text-right font-mono">
-                            <span className={`font-black text-sm block ${isFullyBooked ? 'text-slate-400' : 'text-emerald-700'}`}>
+                            <span className={`font-bold text-sm block ${isFullyBooked ? 'text-slate-400' : 'text-emerald-700'}`}>
                               {parcelAvailSqFt.toLocaleString('en-IN')} Sq.Ft.
                             </span>
                             <span className="text-[10px] text-emerald-800 block font-sans font-semibold">
@@ -892,19 +890,19 @@ const PlotKisanLedgerPage = () => {
                           {/* Status & Utilization */}
                           <td className="p-3.5 text-center">
                             <div className="flex flex-col items-center gap-1 min-w-[120px]">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              <span className={`text-[11px] font-semibold ${
                                 isFullyBooked
-                                  ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                                  ? 'text-teal-700'
                                   : parcelAllocatedSqFt > 0
-                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  ? 'text-amber-700'
+                                  : 'text-emerald-700'
                               }`}>
-                                {isFullyBooked ? 'Fully Booked' : parcelAllocatedSqFt > 0 ? `${percentAllocated}% Allocated` : '100% Free Stock'}
+                                {isFullyBooked ? 'Fully Booked' : parcelAllocatedSqFt > 0 ? `${percentAllocated}% Allocated` : '100% Available'}
                               </span>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                                 <div
                                   className={`h-full rounded-full transition-all duration-300 ${
-                                    isFullyBooked ? 'bg-purple-600' : parcelAllocatedSqFt > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                                    isFullyBooked ? 'bg-teal-600' : parcelAllocatedSqFt > 0 ? 'bg-amber-500' : 'bg-emerald-500'
                                   }`}
                                   style={{ width: `${percentAllocated}%` }}
                                 />
@@ -926,7 +924,7 @@ const PlotKisanLedgerPage = () => {
           TAB 4: REGISTRY DEEDS TABLE
       ════════════════════════════════════════════════════════════════ */}
       {activeTab === 'deeds' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
@@ -948,10 +946,10 @@ const PlotKisanLedgerPage = () => {
                 ) : (
                   agreement?.registryDeeds?.map((d) => (
                     <tr key={d._id} className="hover:bg-slate-50">
-                      <td className="p-3.5 font-bold text-purple-900 font-mono">{d.deedNumber}</td>
+                      <td className="p-3.5 font-bold text-teal-900 font-mono">{d.deedNumber}</td>
                       <td className="p-3.5 text-slate-600 font-mono">{new Date(d.deedDate).toLocaleDateString('en-IN')}</td>
                       <td className="p-3.5 text-slate-700">{d.subRegistrarOffice || '-'}</td>
-                      <td className="p-3.5 text-right font-mono font-bold text-purple-950">
+                      <td className="p-3.5 text-right font-mono font-bold text-teal-950">
                         {d.registeredDismil} Dismil ({d.registeredSqFt} SqFt)
                       </td>
                       <td className="p-3.5 text-center print:hidden">
@@ -959,7 +957,7 @@ const PlotKisanLedgerPage = () => {
                           {canUpdateDeed && (
                             <button
                               onClick={() => openEditDeedModal(agreement._id, d)}
-                              className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg cursor-pointer transition"
+                              className="p-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg cursor-pointer transition"
                               title="Edit Deed"
                             >
                               <Edit3 size={13} />

@@ -331,36 +331,50 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   <th className="p-3">Plan Name</th>
                   <th className="p-3">Tenure (अवधि)</th>
                   {/* Unified Customer Return Scheme: Rate % p.a. | Return % */}
-                  <th className="p-3 bg-teal-50/70 border-l border-teal-200">
-                    <div className="text-teal-950">
-                      <div className="flex items-center gap-1.5 font-extrabold">
+                  <th className="p-3 pb-1.5 align-bottom bg-teal-50/70 border-l border-teal-200 min-w-[230px]">
+                    <div className="text-teal-950 flex flex-col justify-end h-full">
+                      <div className="flex items-center justify-center gap-1.5 font-extrabold text-center">
                         <Coins size={14} className="text-teal-700 shrink-0" />
                         <span>After Booking Cancel Return</span>
                       </div>
-                      <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">
-                        Compound Annual Interest % | Total Maturity Return (%)
-                      </span>
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5 mt-1.5 pt-1 border-t border-teal-200/70 text-[9px] font-semibold text-teal-700 text-center leading-tight">
+                        <span>Rate % p.a.</span>
+                        <span className="text-teal-300">|</span>
+                        <span>One Time Down Payment Refund %</span>
+                      </div>
                     </div>
                   </th>
                   {/* Business Associate Fixed */}
-                  <th className="p-3 bg-blue-50/70 border-l border-blue-200">
-                    <div className="text-blue-900">
-                      <span className="font-extrabold block">BA (Associate) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-blue-700 block mt-0.5">Downpayment | EMI</span>
+                  <th className="p-3 pb-1.5 align-bottom bg-blue-50/70 border-l border-blue-200 min-w-[190px]">
+                    <div className="text-blue-900 flex flex-col justify-end h-full">
+                      <span className="font-extrabold block text-center">BA (Associate) Fixed %</span>
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5 mt-1.5 pt-1 border-t border-blue-200/70 text-[9px] font-semibold text-blue-700 text-center leading-tight">
+                        <span>Downpayment</span>
+                        <span className="text-blue-300">|</span>
+                        <span>EMI</span>
+                      </div>
                     </div>
                   </th>
                   {/* Business Partner Fixed */}
-                  <th className="p-3 bg-amber-50/70 border-l border-amber-200">
-                    <div className="text-amber-900">
-                      <span className="font-extrabold block">BP (Partner) Fixed %</span>
-                      <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">Downpayment | EMI</span>
+                  <th className="p-3 pb-1.5 align-bottom bg-amber-50/70 border-l border-amber-200 min-w-[190px]">
+                    <div className="text-amber-900 flex flex-col justify-end h-full">
+                      <span className="font-extrabold block text-center">BP (Partner) Fixed %</span>
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5 mt-1.5 pt-1 border-t border-amber-200/70 text-[9px] font-semibold text-amber-700 text-center leading-tight">
+                        <span>Downpayment</span>
+                        <span className="text-amber-300">|</span>
+                        <span>EMI</span>
+                      </div>
                     </div>
                   </th>
                   {/* Branch Partner Fixed */}
-                  <th className="p-3 bg-teal-50/70 border-l border-teal-200">
-                    <div className="text-teal-900">
-                      <span className="font-extrabold block">Branch Partner Fixed %</span>
-                      <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">Downpayment | EMI</span>
+                  <th className="p-3 pb-1.5 align-bottom bg-teal-50/70 border-l border-teal-200 min-w-[190px]">
+                    <div className="text-teal-900 flex flex-col justify-end h-full">
+                      <span className="font-extrabold block text-center">Branch Partner Fixed %</span>
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5 mt-1.5 pt-1 border-t border-teal-200/70 text-[9px] font-semibold text-teal-700 text-center leading-tight">
+                        <span>Downpayment</span>
+                        <span className="text-teal-300">|</span>
+                        <span>EMI</span>
+                      </div>
                     </div>
                   </th>
                   <th className="p-3 text-center border-l border-slate-200">Action</th>
@@ -420,8 +434,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
                       {/* Unified Customer Return: Rate % p.a. | Return % */}
                       <td className="p-3 bg-teal-50/20 border-l border-teal-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="Annual Rate % p.a. (Used to calculate Return % & Cancellation Interest)">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1" title="Annual Rate % p.a. (Used to calculate Return % & Cancellation Interest)">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -461,8 +475,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
                       {/* Business Associate Fixed (Downpayment & EMI) */}
                       <td className="p-3 bg-blue-50/30 border-l border-blue-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="BA Downpayment Fixed %">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1" title="BA Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -504,8 +518,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
                       {/* Business Partner Fixed (Downpayment & EMI) */}
                       <td className="p-3 bg-amber-50/30 border-l border-amber-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="BP Downpayment Fixed %">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1" title="BP Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"
@@ -547,8 +561,8 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
 
                       {/* Branch Partner Fixed (Downpayment & EMI) */}
                       <td className="p-3 bg-teal-50/30 border-l border-teal-100">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1" title="Branch Partner Downpayment Fixed %">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1" title="Branch Partner Downpayment Fixed %">
                             <input
                               type="tel"
                               inputMode="decimal"

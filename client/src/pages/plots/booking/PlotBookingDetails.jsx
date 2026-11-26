@@ -817,15 +817,27 @@ const PlotBookingDetails = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {booking.landSourcing.map((src, idx) => (
+                {booking.landSourcing.map((src, idx) => {
+                  const agr = src.agreementId && typeof src.agreementId === 'object' ? src.agreementId : null;
+                  const parcels = Array.isArray(agr?.landParcels) ? agr.landParcels : [];
+                  const matchedParcel =
+                    parcels.find((p) => src.parcelId && String(p._id) === String(src.parcelId)) ||
+                    parcels.find((p) => src.khesraNumber && p.khesraNumber === src.khesraNumber) ||
+                    parcels[0];
+                  const mauja = src.mauja || matchedParcel?.mauja || agr?.mauja || '-';
+                  const thanaNumber = src.thanaNumber || matchedParcel?.thanaNumber || agr?.thanaNumber || '-';
+                  const khataNumber = src.khataNumber || matchedParcel?.khataNumber || agr?.khataNumber || '-';
+                  const khesraNumber = src.khesraNumber || matchedParcel?.khesraNumber || agr?.khesraNumber || '-';
+
+                  return (
                   <div key={idx} className="p-3.5 bg-teal-50/40 border border-teal-200 rounded-xl flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-teal-950 text-xs flex items-center gap-1.5">
                         <FileText size={15} className="text-teal-700" />
                         {src.sourceType === 'REGISTRY_DEED' ? (
-                          <>Registry Deed #{src.deedNumber || 'N/A'}</>
+                          <>Registry Deed No: {src.deedNumber || 'N/A'}</>
                         ) : (
-                          <>Agreement #{src.agreementNumber || 'N/A'}{src.khesraNumber ? ` (Plot #${src.khesraNumber})` : ''}</>
+                          <>Agreement No: {src.agreementNumber || agr?.agreementNumber || 'N/A'}{khesraNumber !== '-' ? ` (Plot: ${khesraNumber})` : ''}</>
                         )}
                       </span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-teal-800 border border-teal-200 uppercase">
@@ -836,15 +848,15 @@ const PlotBookingDetails = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-2 border-t border-teal-100 text-slate-600">
                       <div>
                         <span className="text-slate-400 block text-[9px] uppercase font-bold">Mauja / मौजा</span>
-                        <span className="font-semibold text-slate-800">{src.mauja || '-'}</span>
+                        <span className="font-semibold text-slate-800">{mauja}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[9px] uppercase font-bold">Thana # / थाना</span>
-                        <span className="font-semibold text-slate-800">{src.thanaNumber || '-'}</span>
+                        <span className="font-semibold text-slate-800">{thanaNumber}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[9px] uppercase font-bold">Khata / Khesra</span>
-                        <span className="font-semibold text-slate-800">{src.khataNumber || '-'}/{src.khesraNumber || '-'}</span>
+                        <span className="font-semibold text-slate-800">{khataNumber}/{khesraNumber}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[9px] uppercase font-bold">Allocated Area</span>
@@ -852,7 +864,8 @@ const PlotBookingDetails = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

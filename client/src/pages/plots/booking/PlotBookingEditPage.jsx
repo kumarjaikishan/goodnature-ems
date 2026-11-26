@@ -215,8 +215,23 @@ export default function PlotBookingEditPage() {
       const instCount = b.installmentCount || (b.tenureMonths ? Math.round(b.tenureMonths / freqMultiplier) : 8);
       setInstallmentCount(instCount);
 
-      // Populate land sourcing
-      setLandSourcing(Array.isArray(b.landSourcing) ? JSON.parse(JSON.stringify(b.landSourcing)) : []);
+      // Populate land sourcing (normalize populated agreementId object -> string ID)
+      setLandSourcing(
+        Array.isArray(b.landSourcing)
+          ? b.landSourcing.map((s) => {
+              const agrObj = s.agreementId && typeof s.agreementId === 'object' ? s.agreementId : null;
+              return {
+                ...JSON.parse(JSON.stringify(s)),
+                agreementId: agrObj ? String(agrObj._id || '') : String(s.agreementId || ''),
+                agreementNumber: s.agreementNumber || agrObj?.agreementNumber || '',
+                mauja: s.mauja || agrObj?.mauja || '',
+                thanaNumber: s.thanaNumber || agrObj?.thanaNumber || '',
+                khataNumber: s.khataNumber || agrObj?.khataNumber || '',
+                khesraNumber: s.khesraNumber || agrObj?.khesraNumber || '',
+              };
+            })
+          : []
+      );
 
       // Populate form fields
       setForm({
@@ -726,7 +741,7 @@ export default function PlotBookingEditPage() {
 
       await api.put(`/plots/bookings/${id}`, payload);
       toast.success('Plot booking updated successfully!');
-      navigate(`/dashboard/plots/booking/${id}`);
+      navigate('/dashboard/plots/booking');
     } catch (err) {
       console.error('Error updating booking:', err);
       toast.error(err.response?.data?.message || 'Failed to update plot booking contract');

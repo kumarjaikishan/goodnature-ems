@@ -198,17 +198,20 @@ const ProductBookingPage = () => {
 
           if (Array.isArray(bData.landSourcing) && bData.landSourcing.length > 0) {
             setLandSourcing(
-              bData.landSourcing.map((s) => ({
-                sourceType: s.sourceType || 'AGREEMENT',
-                agreementId: s.agreementId?._id || s.agreementId,
-                agreementNumber: s.agreementNumber || s.agreementId?.agreementNumber || '',
-                parcelId: s.parcelId || null,
-                khesraNumber: s.khesraNumber || '',
-                mauja: s.mauja || '',
-                thanaNumber: s.thanaNumber || '',
-                khataNumber: s.khataNumber || '',
-                allocatedSqFt: s.allocatedSqFt || 0,
-              }))
+              bData.landSourcing.map((s) => {
+                const agrObj = s.agreementId && typeof s.agreementId === 'object' ? s.agreementId : null;
+                return {
+                  sourceType: s.sourceType || 'AGREEMENT',
+                  agreementId: agrObj ? String(agrObj._id || '') : String(s.agreementId || ''),
+                  agreementNumber: s.agreementNumber || agrObj?.agreementNumber || '',
+                  parcelId: s.parcelId ? String(s.parcelId) : null,
+                  khesraNumber: s.khesraNumber || agrObj?.khesraNumber || '',
+                  mauja: s.mauja || agrObj?.mauja || '',
+                  thanaNumber: s.thanaNumber || agrObj?.thanaNumber || '',
+                  khataNumber: s.khataNumber || agrObj?.khataNumber || '',
+                  allocatedSqFt: s.allocatedSqFt || 0,
+                };
+              })
             );
           } else {
             setLandSourcing([]);

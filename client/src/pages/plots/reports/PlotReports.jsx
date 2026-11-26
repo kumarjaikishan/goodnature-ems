@@ -209,6 +209,24 @@ const PlotReports = () => {
     });
   }, [data, activeTab, searchTerm, schemeFilter, statusFilter]);
 
+  const bookingTotals = useMemo(() => {
+    return filteredBookings.reduce(
+      (acc, row) => {
+        const plotValue = Number(row.plotValue || 0);
+        const discount = Number(row.discount || 0);
+        const netVal = Math.max(0, plotValue - discount);
+        const paid = Math.max(0, netVal - Number(row.remainingAmount || 0));
+        const outstanding = Number(row.remainingAmount || 0);
+        acc.plotValue += plotValue;
+        acc.discount += discount;
+        acc.paid += paid;
+        acc.outstanding += outstanding;
+        return acc;
+      },
+      { plotValue: 0, discount: 0, paid: 0, outstanding: 0 }
+    );
+  }, [filteredBookings]);
+
   const filteredDues = useMemo(() => {
     if (!Array.isArray(data) || activeTab !== 'dues') return [];
     return data.filter((b) => {
@@ -223,6 +241,18 @@ const PlotReports = () => {
       return matchesSearch && matchesScheme && matchesDueStatus;
     });
   }, [data, activeTab, searchTerm, schemeFilter, statusFilter]);
+
+  const dueTotals = useMemo(() => {
+    return filteredDues.reduce(
+      (acc, row) => {
+        acc.netPayable += Number(row.netPlotValue || (row.plotValue || 0) - (row.discount || 0));
+        acc.paid += Number(row.totalPaid || 0);
+        acc.due += Number(row.totalDue || row.remainingAmount || 0);
+        return acc;
+      },
+      { netPayable: 0, paid: 0, due: 0 }
+    );
+  }, [filteredDues]);
 
   const customStyles = useMemo(
     () => ({
@@ -386,6 +416,26 @@ const PlotReports = () => {
             pagination
             responsive
             highlightOnHover
+            footerRow={() => (
+              <tr>
+                <td colSpan={3} className="px-3 py-2.5 text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Total ({filteredBookings.length} {filteredBookings.length === 1 ? 'Booking' : 'Bookings'})
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-slate-800 whitespace-nowrap">
+                  ₹{bookingTotals.plotValue.toLocaleString('en-IN')}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-xs font-bold text-amber-800 whitespace-nowrap">
+                  {bookingTotals.discount > 0 ? `-₹${bookingTotals.discount.toLocaleString('en-IN')}` : '—'}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-emerald-700 whitespace-nowrap">
+                  ₹{bookingTotals.paid.toLocaleString('en-IN')}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-rose-700 whitespace-nowrap">
+                  ₹{bookingTotals.outstanding.toLocaleString('en-IN')}
+                </td>
+                <td colSpan={2} />
+              </tr>
+            )}
             noDataComponent={
               <div className="p-8 text-center text-slate-400 italic text-xs font-medium">
                 {data.length === 0 ? 'No bookings recorded yet.' : 'No bookings match the selected filters.'}
@@ -411,6 +461,23 @@ const PlotReports = () => {
             pagination
             responsive
             highlightOnHover
+            footerRow={() => (
+              <tr>
+                <td colSpan={4} className="px-3 py-2.5 text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Total ({filteredDues.length} {filteredDues.length === 1 ? 'Record' : 'Records'})
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-slate-800 whitespace-nowrap">
+                  ₹{dueTotals.netPayable.toLocaleString('en-IN')}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-emerald-700 whitespace-nowrap">
+                  ₹{dueTotals.paid.toLocaleString('en-IN')}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-[13px] font-bold text-rose-700 whitespace-nowrap">
+                  ₹{dueTotals.due.toLocaleString('en-IN')}
+                </td>
+                <td colSpan={3} />
+              </tr>
+            )}
             noDataComponent={
               <div className="p-8 text-center text-slate-500 italic text-xs font-medium">
                 No due records match the selected filters.

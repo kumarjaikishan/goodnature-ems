@@ -131,8 +131,8 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                         {manager?.name ? manager.name.charAt(0).toUpperCase() : <User size={12} />}
                                     </div>
                                 )}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-xs text-slate-700 font-medium">{manager?.name}</span>
+                                <div className="flex flex-col items-start gap-0.5">
+                                    <span className="text-xs text-slate-700 font-medium leading-tight">{manager?.name}</span>
                                     {manager?.role && (
                                         <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md border ${getRoleBadgeStyle(manager.role)}`}>
                                             {getRoleDisplayLabel(manager.role)}
@@ -376,25 +376,27 @@ const BranchManager = ({ branch, setopenviewmodal, handleEditBranch, handleDelet
                                                 {managers.map((m, mIdx) => (
                                                      <div
                                                          key={mIdx}
-                                                         className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl text-xs"
+                                                         className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs"
                                                      >
                                                          {m?.profileImage ? (
                                                              <img
                                                                  src={m.profileImage}
                                                                  alt={m.name}
-                                                                 className="w-4.5 h-4.5 rounded-full object-cover"
+                                                                 className="w-6 h-6 rounded-full object-cover shrink-0"
                                                              />
                                                          ) : (
-                                                             <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[9px] ${getInitialBg(m?.name)}`}>
+                                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${getInitialBg(m?.name)}`}>
                                                                  {m?.name?.charAt(0)?.toUpperCase() || 'U'}
                                                              </div>
                                                          )}
-                                                         <span className="text-slate-700 font-semibold text-[11px]">{m?.name}</span>
-                                                         {m?.role && (
-                                                             <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md border ${getRoleBadgeStyle(m.role)}`}>
-                                                                 {getRoleDisplayLabel(m.role)}
-                                                             </span>
-                                                         )}
+                                                         <div className="flex flex-col items-start gap-0.5">
+                                                             <span className="text-slate-700 font-semibold text-[11px] leading-tight">{m?.name}</span>
+                                                             {m?.role && (
+                                                                 <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md border ${getRoleBadgeStyle(m.role)}`}>
+                                                                     {getRoleDisplayLabel(m.role)}
+                                                                 </span>
+                                                             )}
+                                                         </div>
                                                      </div>
                                                  ))}
                                              </div>

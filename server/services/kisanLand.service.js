@@ -6,6 +6,7 @@ const KisanSeller = require('../models/KisanSeller');
 const LandPurchaser = require('../models/LandPurchaser');
 const PlotProject = require('../models/PlotProject');
 const Counter = require('../models/Counter');
+const PlotBooking = require('../models/PlotBooking');
 const ApiError = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
 
@@ -754,6 +755,11 @@ class KisanLandService {
       transactionType: { $nin: ['REGISTRY_CONVERSION'] },
       sourceType: { $ne: 'REGISTRY_DEED' },
     })
+      .populate({
+        path: 'bookingId',
+        select: 'customerId',
+        populate: { path: 'customerId', select: 'name' },
+      })
       .sort({ date: 1, createdAt: 1 })
       .lean();
 
@@ -766,6 +772,7 @@ class KisanLandService {
       }
       return {
         ...entry,
+        customerName: entry.customerName || entry.bookingId?.customerId?.name || '',
         runningAvailableSqFt: runningSqFt,
       };
     });
@@ -778,17 +785,25 @@ class KisanLandService {
       .reduce((sum, l) => sum + (l.amount || 0), 0);
     const balanceDue = Math.max(0, totalCost - totalPaid);
 
-    // Ensure agreement and parcel availability accurately reflect allocated bookings
-    const calcAllocatedSqFt = agreement.totalAllocatedSqFt || 0;
-    const calcTotalSqFt = agreement.totalSqFt || 0;
-    const calcAvailSqFt = Math.max(0, calcTotalSqFt - calcAllocatedSqFt);
+    const activeBookings = await PlotBooking.find({
+      'landSourcing.agreementId': id,
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+    })
+      .select('landSourcing')
+      .lean();
 
-    const sanitizedParcels = (agreement.landParcels || []).map((p) => {
-      const pTotal = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6) : 0);
-      const pAlloc = p.allocatedSqFt || 0;
-      const pAvail = p.availableSqFt !== undefined && p.availableSqFt !== null
-        ? p.availableSqFt
-        : Math.max(0, pTotal - pAlloc);
+    const parcels = agreement.landParcels || [];
+    const { totalAllocated: calcAllocatedSqFt, byParcelId: liveAllocByParcelId, byKhesra: liveAllocByKhesra } =
+      this._sumBookingAllocationsForAgreement(id, parcels, activeBookings);
+
+    const calcTotalSqFt = agreement.totalSqFt || 0;
+    const calcAvailSqFt = Math.max(0, Math.round((calcTotalSqFt - calcAllocatedSqFt) * 100) / 100);
+
+    const sanitizedParcels = parcels.map((p) => {
+      const pTotal = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6 * 100) / 100 : 0);
+      const pid = String(p._id);
+      const pAlloc = Math.round(((liveAllocByParcelId.get(pid) || 0) + (liveAllocByKhesra.get(p.khesraNumber) || 0)) * 100) / 100;
+      const pAvail = Math.max(0, Math.round((pTotal - pAlloc) * 100) / 100);
       return {
         ...p,
         totalSqFt: pTotal,
@@ -815,30 +830,71 @@ class KisanLandService {
   /**
    * 6. Get Available Land Stock Sources for Plot Booking Dropdowns
    */
+  _sumBookingAllocationsForAgreement(agreementId, parcels, bookings) {
+    const byParcelId = new Map();
+    const byKhesra = new Map();
+    let totalAllocated = 0;
+
+    for (const b of bookings) {
+      for (const src of b.landSourcing || []) {
+        if (String(src.agreementId) !== String(agreementId)) continue;
+        const sqFt = Number(src.allocatedSqFt) || 0;
+        if (sqFt <= 0) continue;
+        totalAllocated += sqFt;
+        if (src.parcelId) {
+          const pid = String(src.parcelId);
+          byParcelId.set(pid, (byParcelId.get(pid) || 0) + sqFt);
+        } else if (src.khesraNumber) {
+          byKhesra.set(src.khesraNumber, (byKhesra.get(src.khesraNumber) || 0) + sqFt);
+        } else if (parcels.length === 1) {
+          const pid = String(parcels[0]._id);
+          byParcelId.set(pid, (byParcelId.get(pid) || 0) + sqFt);
+        }
+      }
+    }
+
+    return {
+      totalAllocated: Math.round(totalAllocated * 100) / 100,
+      byParcelId,
+      byKhesra,
+    };
+  }
+
+  /**
+   * Get available land stock sources (Agreements & Registry Deeds with > 0 available SqFt)
+   */
   async getAvailableLandStockSources() {
     const agreements = await KisanLandAgreement.find({ status: { $ne: 'CANCELLED' } }).lean();
+    const activeBookings = await PlotBooking.find({
+      status: { $nin: ['CANCELLED', 'REJECTED'] },
+    })
+      .select('landSourcing')
+      .lean();
     const sources = [];
 
     for (const agr of agreements) {
-      const availSqFt =
-        agr.totalAvailableSqFt !== undefined && agr.totalAvailableSqFt !== null
-          ? agr.totalAvailableSqFt
-          : Math.max(0, (agr.totalSqFt || 0) - (agr.totalAllocatedSqFt || 0));
+      const agrParcels = agr.landParcels || [];
+      const { totalAllocated, byParcelId, byKhesra } = this._sumBookingAllocationsForAgreement(
+        agr._id,
+        agrParcels,
+        activeBookings
+      );
+      const availSqFt = Math.max(0, Math.round(((agr.totalSqFt || 0) - totalAllocated) * 100) / 100);
 
       if (availSqFt > 0) {
-        const parcels = (agr.landParcels || []).map((p) => {
-          const pAvail =
-            p.availableSqFt !== undefined && p.availableSqFt !== null
-              ? p.availableSqFt
-              : Math.max(0, (p.totalSqFt || 0) - (p.allocatedSqFt || 0));
+        const parcels = agrParcels.map((p) => {
+          const pTotal = p.totalSqFt || (p.araziDismil ? Math.round(p.araziDismil * 435.6 * 100) / 100 : 0);
+          const pid = String(p._id);
+          const pAlloc = Math.round(((byParcelId.get(pid) || 0) + (byKhesra.get(p.khesraNumber) || 0)) * 100) / 100;
+          const pAvail = Math.max(0, Math.round((pTotal - pAlloc) * 100) / 100);
           return {
             parcelId: p._id,
             mauja: p.mauja || agr.mauja || '',
             thanaNumber: p.thanaNumber || agr.thanaNumber || '',
             khataNumber: p.khataNumber || agr.khataNumber || '',
             khesraNumber: p.khesraNumber || agr.khesraNumber || '',
-            totalSqFt: p.totalSqFt || 0,
-            allocatedSqFt: p.allocatedSqFt || 0,
+            totalSqFt: pTotal,
+            allocatedSqFt: pAlloc,
             availableSqFt: pAvail,
             availableDismil: Math.round((pAvail / 435.6) * 100) / 100,
           };
@@ -955,10 +1011,17 @@ class KisanLandService {
           const regDismil = existingP ? (existingP.registeredDismil || 0) : 0;
           const regSqFt = existingP ? (existingP.registeredSqFt || 0) : 0;
           const unregAllocSqFt = existingP ? (existingP.unregisteredAllocatedSqFt || 0) : 0;
+          const totalAllocOnParcel = existingP ? (existingP.allocatedSqFt || 0) : 0;
 
           if (numDismil < regDismil - 0.001) {
             throw ApiError.badRequest(
               `Cannot reduce parcel (Mauja: ${p.mauja}, Khesra: ${p.khesraNumber}) to ${numDismil} Dismil. Already registered in deeds: ${regDismil} Dismil.`
+            );
+          }
+
+          if (pSqFt < totalAllocOnParcel - 0.5) {
+            throw ApiError.badRequest(
+              `Cannot reduce parcel (Mauja: ${p.mauja}, Khesra: ${p.khesraNumber}) below total allocated plot booking stock (${totalAllocOnParcel} Sq.Ft.).`
             );
           }
 
@@ -970,6 +1033,7 @@ class KisanLandService {
           }
 
           const unregAvailSqFt = Math.max(0, Math.round((unregAgreedSqFt - unregAllocSqFt) * 100) / 100);
+          const parcelAvailSqFt = Math.max(0, Math.round((pSqFt - totalAllocOnParcel) * 100) / 100);
 
           updatedParcels.push({
             _id: existingP ? existingP._id : undefined,
@@ -994,8 +1058,8 @@ class KisanLandService {
             unregisteredAgreedSqFt: unregAgreedSqFt,
             unregisteredAllocatedSqFt: unregAllocSqFt,
             unregisteredAvailableSqFt: unregAvailSqFt,
-            allocatedSqFt: (existingP?.allocatedSqFt || 0),
-            availableSqFt: unregAvailSqFt,
+            allocatedSqFt: totalAllocOnParcel,
+            availableSqFt: parcelAvailSqFt,
             remarks: p.remarks || '',
           });
         }
@@ -1040,6 +1104,14 @@ class KisanLandService {
           0,
           Math.round((agreement.totalSqFt - (agreement.totalAllocatedSqFt || 0)) * 100) / 100
         );
+
+        if (agreement.totalRegisteredSqFt <= 0) {
+          agreement.status = 'ACTIVE';
+        } else if (agreement.totalRegisteredSqFt >= agreement.totalSqFt - 1) {
+          agreement.status = 'FULLY_REGISTERED';
+        } else {
+          agreement.status = 'PARTIALLY_REGISTERED';
+        }
 
         if (totalAgreementAmount !== undefined && totalAgreementAmount !== '' && totalAgreementAmount !== null) {
           agreement.totalAgreementAmount = Number(totalAgreementAmount) || 0;
