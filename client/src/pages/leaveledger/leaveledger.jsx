@@ -556,6 +556,8 @@ const Leaveledger = () => {
                 open={historyOpen}
                 onClose={() => setHistoryOpen(false)}
                 employee={historyEmployee}
+                canDelete={canDelete}
+                onDeleted={fetchLeaveLedgerData}
             />
         </div>
     );

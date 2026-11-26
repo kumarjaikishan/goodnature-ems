@@ -1,32 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
+import { Trash2 } from 'lucide-react';
 import { apiClient } from '../../../utils/apiClient';
 import { toast } from '../../../utils/toast';
+import { confirmDialog } from '../../../utils/confirmDialog';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/utils/loader';
 
-const LeaveHistoryModal = ({ open, onClose, employee }) => {
+const LeaveHistoryModal = ({ open, onClose, employee, canDelete = false, onDeleted }) => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
 
-    useEffect(() => {
-        if (open && employee?._id) {
-            fetchHistory();
-        }
-    }, [open, employee]);
-
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
+        if (!employee?._id) return;
         setLoading(true);
         try {
-            const data = await apiClient({ 
-                url: `leave-transactions/${employee._id}` 
+            const data = await apiClient({
+                url: `leave-transactions/${employee._id}`
             });
             setTransactions(Array.isArray(data) ? data : []);
         } catch (error) {
             toast.error(error.message || 'Failed to load leave history');
         } finally {
             setLoading(false);
+        }
+    }, [employee?._id]);
+
+    useEffect(() => {
+        if (open && employee?._id) {
+            fetchHistory();
+        }
+    }, [open, employee?._id, fetchHistory]);
+
+    const handleDeleteTransaction = async (tx) => {
+        const count = tx.days ?? tx.amount ?? 0;
+        const proceed = await confirmDialog({
+            title: 'Delete Leave Entry?',
+            text: `Remove this ${tx.type} entry (${tx.type === 'credit' ? '+' : '-'}${count} days) and recalculate the employee's leave balance?`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDanger: true,
+        });
+        if (!proceed) return;
+
+        setDeletingId(tx._id);
+        try {
+            const res = await apiClient({
+                url: `leave-balances/${tx._id}`,
+                method: 'DELETE',
+            });
+            toast.success(res?.message || 'Transaction deleted and balance recalculated');
+            await fetchHistory();
+            onDeleted?.();
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete leave entry');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -67,6 +98,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
                                     <th className="py-2.5 px-3">Policy / Reason</th>
                                     <th className="py-2.5 px-3">Source</th>
                                     <th className="py-2.5 px-3">Logged By</th>
+                                    {canDelete && <th className="py-2.5 px-3 text-center">Action</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -98,8 +130,21 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
                                             </Badge>
                                         </td>
                                         <td className="py-2.5 px-3 text-slate-600">
-                                            {t.actionBy?.name || 'System Auto'}
+                                            {t.actionBy?.name || (t.source === 'manual' ? 'Legacy (Admin)' : 'System Auto')}
                                         </td>
+                                        {canDelete && (
+                                            <td className="py-2.5 px-3 text-center">
+                                                <button
+                                                    type="button"
+                                                    title="Delete Entry"
+                                                    disabled={deletingId === t._id}
+                                                    onClick={() => handleDeleteTransaction(t)}
+                                                    className="p-1.5 rounded-md text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

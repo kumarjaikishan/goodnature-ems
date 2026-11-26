@@ -64,6 +64,7 @@ export default function PayrollCreatePage() {
   const [holidaydate, setholidaydate] = useState([]);
   const [taxrate, settaxrate] = useState(0);
   const [employeeleavebal, setemployeeleavebal] = useState(0);
+  const [fetchedLeaveBalances, setFetchedLeaveBalances] = useState(null);
   const [previousAdvance, setpreviousAdvance] = useState(0);
   const [activeAdvanceInfo, setActiveAdvanceInfo] = useState(null);
   const [previousWeeklyOffAccumulated, setPreviousWeeklyOffAccumulated] = useState(0);
@@ -259,29 +260,6 @@ export default function PayrollCreatePage() {
         body: fields
       });
 
-      if (options.addWeeklyOffWork) {
-        const paidMin = Number(options.adjustedWeeklyOffMin !== undefined ? options.adjustedWeeklyOffMin : totalAvailableWeeklyOffMin) || 0;
-        if (paidMin > 0) {
-          try {
-            await apiClient({
-              url: "weekly-off-ledger",
-              method: "POST",
-              body: {
-                employeeId: selectedEmployee,
-                type: "PAYROLL_PAID",
-                minutes: paidMin,
-                particulars: `Paid in ${months[month - 1]} ${year} Payroll`,
-                month,
-                year,
-                payrollId: data.payroll?._id || data._id || id,
-              }
-            });
-          } catch (e) {
-            console.error("Failed to post weekly off ledger entry:", e);
-          }
-        }
-      }
-
       toast.success(data.message || (id ? "Payroll updated successfully!" : "Payroll created successfully!"));
       dispatch(FirstFetch());
       setSuccess(id ? "Payroll updated successfully!" : "Payroll created successfully!");
@@ -296,15 +274,30 @@ export default function PayrollCreatePage() {
   };
 
   useEffect(() => {
-    if (!selectedEmployeedetail || !leaveBalance) return;
+    let active = true;
+    apiClient({ url: "leave-balances" })
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        setFetchedLeaveBalances(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    const employeeBalances = leaveBalance.filter(
-      (e) => e.employeeId?._id?.toString() === selectedEmployeedetail._id?.toString()
+  useEffect(() => {
+    const sourceBalances = fetchedLeaveBalances || leaveBalance;
+    if (!selectedEmployeedetail || !sourceBalances) return;
+
+    const employeeBalances = sourceBalances.filter(
+      (e) => String(e.employeeId?._id || e.employeeId) === String(selectedEmployeedetail._id)
     );
-    const totalRemaining = employeeBalances.reduce((sum, item) => sum + (item.remaining || 0), 0);
+    const totalRemaining = employeeBalances.reduce((sum, item) => sum + (Number(item.remaining) || 0), 0);
 
-    setemployeeleavebal(totalRemaining);
-  }, [leaveBalance, selectedEmployeedetail]);
+    setemployeeleavebal(Math.max(0, totalRemaining));
+  }, [fetchedLeaveBalances, leaveBalance, selectedEmployeedetail]);
 
   const targetEmpId = selectedEmployee || urlEmployeeId || stateEmployee?._id;
 
@@ -628,8 +621,10 @@ export default function PayrollCreatePage() {
   }, [selectedEmployeedetail?.salary, totalAllowances, totalBonuses]);
 
   const netSalary = useMemo(() => {
-    return Math.round(grossSalary - totalDeductions);
-  }, [grossSalary, totalDeductions]);
+    const netAfterDeductions = grossSalary - totalDeductions;
+    const taxAmount = (netAfterDeductions * Number(taxrate || 0)) / 100;
+    return Math.round(netAfterDeductions - taxAmount);
+  }, [grossSalary, totalDeductions, taxrate]);
 
   const handleArrayChange = (field, index, key, value) => {
     const rawVal = (value !== null && typeof value === "object" && value.target !== undefined)
@@ -642,6 +637,7 @@ export default function PayrollCreatePage() {
 
   useEffect(() => {
     if (!selectedEmployeedetail) return;
+    if (id && editPayrollData) return;
 
     let initialAllowances = [];
     let initialBonuses = [];
@@ -679,6 +675,7 @@ export default function PayrollCreatePage() {
 
   useEffect(() => {
     if (!selectedEmployeedetail) return;
+    if (id && editPayrollData) return;
 
     setForm(prev => {
       let updatedBonuses = prev.bonuses.filter(b => !b.inputDisabled);
@@ -741,7 +738,7 @@ export default function PayrollCreatePage() {
           if (adjusted > 0) {
             updatedDeductions.push({
               name: "Paid Leave Adjustment",
-              amount: (adjusted * perDayRate).toFixed(2),
+              amount: "0.00",
               extraInfo: `${adjusted} Paid Leave(s) Adjusted from balance`,
               inputDisabled: true
             });
@@ -1150,11 +1147,7 @@ export default function PayrollCreatePage() {
 
               {/* Deduct Leave Days & Paid Leave Adjustment */}
               {form?.leaveDays > 0 && (
-                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
-                  options.deductLeave
-                    ? "bg-rose-50/70 border-rose-300 shadow-xs"
-                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
-                }`}>
+                <div className="p-3 rounded-xl border transition-all space-y-2.5 bg-slate-50/60 border-slate-200 hover:border-slate-300">
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1184,7 +1177,7 @@ export default function PayrollCreatePage() {
                   </label>
 
                   {options.deductLeave && employeeleavebal > 0 && (
-                    <div className="pl-6.5 pt-2 border-t border-rose-100 flex items-center justify-between flex-wrap gap-2">
+                    <div className="pl-6.5 pt-2 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
                       <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-teal-800">
                         <input
                           type="checkbox"
@@ -1203,23 +1196,28 @@ export default function PayrollCreatePage() {
                       </label>
 
                       {options.adjustLeave && (
-                        <div className="w-24">
-                          <NumberInput
-                            size="sm"
-                            label="Paid Days"
-                            min={0}
-                            max={Math.min(employeeleavebal, form.leaveDays)}
-                            value={options.adjustedLeaveCount}
-                            onChange={(e) => {
-                              const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
-                              const val = Number(raw) || 0;
-                              const max = Math.min(employeeleavebal, form.leaveDays);
-                              setOptions((p) => ({
-                                ...p,
-                                adjustedLeaveCount: Math.max(0, Math.min(val, max)),
-                              }));
-                            }}
-                          />
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="w-24">
+                            <NumberInput
+                              size="sm"
+                              label="Paid Days"
+                              min={0}
+                              max={Math.min(employeeleavebal, form.leaveDays)}
+                              value={options.adjustedLeaveCount}
+                              onChange={(e) => {
+                                const raw = (e !== null && typeof e === 'object' && e.target !== undefined) ? e.target.value : e;
+                                const val = Number(raw) || 0;
+                                const max = Math.min(employeeleavebal, form.leaveDays);
+                                setOptions((p) => ({
+                                  ...p,
+                                  adjustedLeaveCount: Math.max(0, Math.min(val, max)),
+                                }));
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-teal-700">
+                            Max allowed: {Math.min(employeeleavebal, form.leaveDays)} day{Math.min(employeeleavebal, form.leaveDays) !== 1 ? 's' : ''}
+                          </span>
                         </div>
                       )}
                     </div>

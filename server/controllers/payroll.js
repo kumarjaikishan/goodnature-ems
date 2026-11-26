@@ -111,7 +111,6 @@ exports.createPayroll = async (req, res, next) => {
     if (options.adjustLeave && options.adjustedLeaveCount > 0) {
       const balances = await LeaveBalance.find({
         employeeId,
-        companyId,
         remaining: { $gt: 0 }
       }).session(session);
 
@@ -135,6 +134,7 @@ exports.createPayroll = async (req, res, next) => {
           balanceAfter: bal.remaining - deductAmount,
           source: "manual",
           referenceId: payroll._id,
+          actionBy: req.user?.id,
           remarks: `Leave adjusted in Payroll ${month}-${year}`
         });
         await tx.save({ session });
@@ -336,6 +336,10 @@ exports.editPayroll = async (req, res, next) => {
     const payroll = await Payroll.findById(id).session(session);
     if (!payroll) throw new Error("Payroll not found");
 
+    const oldAdvanceAdjustment = payroll.options?.adjustAdvance
+      ? (Number(payroll.options?.adjustedAdvance) || 0)
+      : 0;
+
     const postingDate = toUtcDateOnly(issueDate || payroll.issueDate || new Date());
 
     // 🔹 Calculate salary
@@ -383,7 +387,6 @@ exports.editPayroll = async (req, res, next) => {
       // Find all leave balances with remaining > 0 (reflecting the restored balances)
       const balances = await LeaveBalance.find({
         employeeId: payroll.employeeId,
-        companyId: payroll.companyId,
         remaining: { $gt: 0 }
       }).session(session);
 
@@ -407,6 +410,7 @@ exports.editPayroll = async (req, res, next) => {
           balanceAfter: bal.remaining - deductAmount,
           source: "manual",
           referenceId: payroll._id,
+          actionBy: req.user?.id,
           remarks: `Leave adjusted in Payroll ${payroll.month}-${payroll.year}`
         });
         await tx.save({ session });
@@ -420,8 +424,8 @@ exports.editPayroll = async (req, res, next) => {
 
     // 🔹 Handle advance adjustment
     if (options?.adjustAdvance !== undefined) {
-      const oldAdjustment = payroll.options?.adjustedAdvance || 0;
-      const newAdjustment = options.adjustedAdvance || 0;
+      const oldAdjustment = oldAdvanceAdjustment;
+      const newAdjustment = options?.adjustAdvance ? (Number(options.adjustedAdvance) || 0) : 0;
       const difference = newAdjustment - oldAdjustment;
 
       if (difference > 0) {
