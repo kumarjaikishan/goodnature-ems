@@ -9,6 +9,7 @@ const leaveTransactionSchema = new mongoose.Schema({
   balanceAfter: { type: Number, required: true },
   source: { type: String, enum: ['allocation', 'approval', 'manual', 'reset'], required: true },
   referenceId: { type: mongoose.Schema.Types.ObjectId }, // e.g. LeaveRequest ID or Policy ID
+  actionBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
   remarks: { type: String }
 }, { timestamps: true });
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { apiClient } from '../../../utils/apiClient';
+import { toast } from '../../../utils/toast';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/utils/loader';
@@ -24,7 +24,7 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
             });
             setTransactions(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Error fetching leave history:', error);
+            toast.error(error.message || 'Failed to load leave history');
         } finally {
             setLoading(false);
         }
@@ -81,7 +81,10 @@ const LeaveHistoryModal = ({ open, onClose, employee }) => {
                                             </Badge>
                                         </td>
                                         <td className="py-2.5 px-3 font-bold text-slate-900">
-                                            {t.type === 'credit' ? `+${t.amount}` : `-${t.amount}`}
+                                            {(() => {
+                                                const count = t.days ?? t.amount ?? 0;
+                                                return t.type === 'credit' ? `+${count}` : `-${count}`;
+                                            })()}
                                         </td>
                                         <td className="py-2.5 px-3 text-slate-700">
                                             <span className="font-semibold block">{t.policyId?.name || t.remarks || 'General'}</span>

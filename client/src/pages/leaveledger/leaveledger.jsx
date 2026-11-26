@@ -1,22 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import DataTable from '@/components/common/DataTable';
 import { apiClient } from "../../utils/apiClient";
-import { Trash2, Edit2, ExternalLink, History, Search, Plus, Filter, User } from "lucide-react";
+import { Trash2, Edit2, ExternalLink, Eye, Search, Plus, User, X, AlertCircle } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "../../utils/toast";
 import { confirmDialog } from "../../utils/confirmDialog";
 import { useNavigate } from "react-router-dom";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
-import { FirstFetch, setEmployees } from "../../../store/userSlice";
+import { setEmployees } from "../../../store/userSlice";
 import LeaveHistoryModal from "./components/LeaveHistoryModal";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
+import { usePermission } from "../../utils/CheckPermission";
 import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
 import Select from "@/components/ui/Select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import Button from "@/components/ui/Button";
 import Modalbox from "@/components/custommodal/Modalbox";
-import Badge from "@/components/ui/Badge";
 
 const getInitialBg = (name) => {
     const colors = [
@@ -52,10 +52,16 @@ const Leaveledger = () => {
     const navigate = useNavigate();
     const [editingId, setEditingId] = useState(null);
     const [isBulk, setIsBulk] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const { company, employee, leaveBalance, branch, leavePolicies } = useSelector((state) => state.user);
+    const [tableLoading, setTableLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const { employee, branch, leavePolicies } = useSelector((state) => state.user);
+
+    const canCreate = usePermission("leave", 2);
+    const canEdit = usePermission("leave", 3);
+    const canDelete = usePermission("leave", 4);
 
     const [policies, setPolicies] = useState([]);
+    const customTableStyles = useCustomStyles();
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({
@@ -64,43 +70,47 @@ const Leaveledger = () => {
         }));
     };
 
-    useEffect(() => {
-        fetchLeaveLedgerData();
-    }, []);
-
-    const fetchLeaveLedgerData = async () => {
+    const fetchLeaveLedgerData = useCallback(async () => {
         try {
-            setLoading(true);
+            setTableLoading(true);
             const [lbRes, polRes, empRes] = await Promise.all([
                 apiClient({ url: "leave-balances" }),
                 apiClient({ url: "leave-policies" }),
                 apiClient({ url: "getemployee" })
             ]);
-            if (Array.isArray(lbRes)) setRows(lbRes);
-            if (Array.isArray(polRes)) setPolicies(polRes);
-            if (Array.isArray(empRes)) dispatch(setEmployees(empRes));
+            const lbList = Array.isArray(lbRes) ? lbRes : (lbRes?.data || []);
+            const polList = Array.isArray(polRes) ? polRes : (polRes?.data || []);
+            const empList = Array.isArray(empRes) ? empRes : (empRes?.data || []);
+
+            setRows(lbList);
+            if (polList.length > 0 || Array.isArray(polRes)) setPolicies(polList);
+            if (empList.length > 0 || Array.isArray(empRes)) dispatch(setEmployees(empList));
         } catch (err) {
-            console.error("Error fetching leave ledger data:", err);
+            toast.error(err.message || "Failed to load leave balances");
         } finally {
-            setLoading(false);
+            setTableLoading(false);
         }
-    };
+    }, [dispatch]);
+
+    useEffect(() => {
+        fetchLeaveLedgerData();
+    }, [fetchLeaveLedgerData]);
 
     const handleChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleOpen = (row = null) => {
+    const handleOpen = useCallback((row = null) => {
         setIsBulk(false);
         if (row) {
             setForm({
                 employeeId: row.employeeId?._id || "",
                 companyId: row.companyId || "",
                 branchId: row.branchId || "",
-                type: row.type || "credit",
-                amount: row.amount || 0,
+                type: "credit",
+                amount: 0,
                 policyId: row.policyId?._id || row.policyId || "",
-                remarks: row.remarks || "",
+                remarks: "",
             });
             setEditingId(row._id);
         } else {
@@ -116,7 +126,7 @@ const Leaveledger = () => {
             setEditingId(null);
         }
         setOpen(true);
-    };
+    }, []);
 
     const handleBulkOpen = () => {
         setIsBulk(true);
@@ -133,24 +143,31 @@ const Leaveledger = () => {
         setOpen(true);
     };
 
-    const filteredEmployees = rows?.filter(emp => {
-        const name = emp.employeeId?.userid?.name?.toLowerCase() || '';
-        const branchId = emp.branchId || '';
+    const filteredEmployees = useMemo(() => {
+        const q = filters.searchText.trim().toLowerCase();
+        return (rows || []).filter(emp => {
+            const name = emp.employeeId?.userid?.name?.toLowerCase() || '';
+            const empId = emp.employeeId?.empId?.toLowerCase() || '';
+            const policyName = emp.policyId?.name?.toLowerCase() || '';
+            const branchId = emp.branchId || '';
 
-        const nameMatch = filters.searchText.trim() === '' || name.includes(filters.searchText.toLowerCase());
-        const branchMatch = filters.branch === 'all' || branchId === filters.branch;
+            const nameMatch = !q || name.includes(q) || empId.includes(q) || policyName.includes(q);
+            const branchMatch = filters.branch === 'all' || String(branchId) === String(filters.branch);
 
-        return nameMatch && branchMatch;
-    });
+            return nameMatch && branchMatch;
+        });
+    }, [rows, filters]);
 
     const handleClose = () => setOpen(false);
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         if (!isBulk && !form.employeeId) return toast.warning("Please select Employee");
-        if (form.amount < 1) return toast.warning("Please enter No. of Leaves");
+        if (!form.policyId) return toast.warning("Please select Leave Policy");
+        if (!form.amount || Number(form.amount) < 1) return toast.warning("Please enter No. of Leaves (at least 1)");
+
         try {
-            setLoading(true);
+            setSubmitting(true);
             if (isBulk) {
                 await apiClient({
                     url: `leave-balances/bulk`,
@@ -167,7 +184,11 @@ const Leaveledger = () => {
                 await apiClient({
                     url: `leave-balances/${editingId}`,
                     method: "PUT",
-                    body: form
+                    body: {
+                        type: form.type,
+                        amount: form.amount,
+                        remarks: form.remarks
+                    }
                 });
                 toast.success("Leave balance updated");
             } else {
@@ -181,17 +202,16 @@ const Leaveledger = () => {
             fetchLeaveLedgerData();
             handleClose();
         } catch (error) {
-            console.error("Error saving leave balance:", error);
             toast.error(error.message || "Failed to save leave balance");
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         const proceed = await confirmDialog({
             title: "Delete Summary Record?",
-            text: "Are you sure you want to delete this leave summary record?",
+            text: "This will delete the leave balance summary and its transaction history for this policy.",
             confirmText: "Delete",
             cancelText: "Cancel",
             isDanger: true,
@@ -206,30 +226,29 @@ const Leaveledger = () => {
             toast.success("Leave balance deleted");
             fetchLeaveLedgerData();
         } catch (error) {
-            console.error("Error deleting leave balance:", error);
             toast.error(error.message || "Failed to delete");
         }
-    };
+    }, [fetchLeaveLedgerData]);
 
     const setEmployeeId = (empId) => {
         const emp = employee?.find((e) => e._id === empId);
         if (emp) {
-            setForm({
-                ...form,
+            setForm(prev => ({
+                ...prev,
                 employeeId: emp._id,
                 companyId: emp.companyId,
                 branchId: emp.branchId,
-            });
+            }));
         }
     };
 
-    const columns = [
-        { name: "S.no", selector: (row, ind) => ind + 1, width: '60px' },
+    const columns = useMemo(() => [
+        { name: "S.no", selector: (_row, ind) => ind + 1, width: '60px' },
         {
             name: "Employee",
             selector: (row) => row?.employeeId?.userid?.name || "",
             sortable: true,
-            minWidth: '200px',
+            minWidth: '210px',
             cell: (row) => {
                 const name = row?.employeeId?.userid?.name || "N/A";
                 const profileImg = row?.employeeId?.profileimage;
@@ -252,11 +271,25 @@ const Leaveledger = () => {
                         )}
                         <div>
                             <span className="font-semibold text-xs text-slate-800 block capitalize">{name}</span>
-                            <span className="text-[10px] text-slate-500 block">({row?.employeeId?.designation || 'Staff'})</span>
+                            <span className="text-[10px] text-slate-500 block">
+                                {row?.employeeId?.empId ? `${row.employeeId.empId} • ` : ''}
+                                {row?.employeeId?.designation || 'Staff'}
+                            </span>
                         </div>
                     </div>
                 );
             },
+        },
+        {
+            name: "Leave Policy",
+            selector: (row) => row?.policyId?.name || "",
+            sortable: true,
+            minWidth: '150px',
+            cell: (row) => (
+                <span className="text-xs font-medium text-slate-700">
+                    {row?.policyId?.name || 'General'}
+                </span>
+            )
         },
         {
             name: "Total Allotted",
@@ -270,17 +303,22 @@ const Leaveledger = () => {
             sortable: true,
             cell: (row) => <span className="font-semibold text-slate-600">{row.used}</span>
         },
-        { 
-            name: "Remaining", 
-            selector: (row) => row.remaining, 
-            sortable: true, 
+        {
+            name: "Remaining",
+            selector: (row) => row.remaining,
+            sortable: true,
             cell: (row) => (
-                <Badge
-                    size="sm"
-                    variant={row.remaining < 0 ? 'danger' : row.remaining === 0 ? 'warning' : 'success'}
+                <span
+                    className={`font-semibold text-xs ${
+                        row.remaining < 0
+                            ? 'text-rose-600'
+                            : row.remaining === 0
+                                ? 'text-amber-700'
+                                : 'text-emerald-700'
+                    }`}
                 >
                     {row.remaining} days
-                </Badge>
+                </span>
             )
         },
         {
@@ -290,6 +328,7 @@ const Leaveledger = () => {
                     {!row?.payrollId && (
                         <>
                             <button
+                                type="button"
                                 title="View Leave History"
                                 className="p-1 rounded text-sky-600 hover:bg-sky-50 transition cursor-pointer"
                                 onClick={() => {
@@ -297,26 +336,33 @@ const Leaveledger = () => {
                                     setHistoryOpen(true);
                                 }}
                             >
-                                <History size={16} />
+                                <Eye size={16} />
                             </button>
-                            <button
-                                title="Adjust Balance"
-                                className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
-                                onClick={() => handleOpen(row)}
-                            >
-                                <Edit2 size={16} />
-                            </button>
-                            <button
-                                title="Delete Summary"
-                                className="p-1 rounded text-red-500 hover:bg-red-50 transition cursor-pointer"
-                                onClick={() => handleDelete(row._id)}
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            {canEdit && (
+                                <button
+                                    type="button"
+                                    title="Adjust Balance"
+                                    className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+                                    onClick={() => handleOpen(row)}
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                            )}
+                            {canDelete && (
+                                <button
+                                    type="button"
+                                    title="Delete Summary"
+                                    className="p-1 rounded text-red-500 hover:bg-red-50 transition cursor-pointer"
+                                    onClick={() => handleDelete(row._id)}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            )}
                         </>
                     )}
                     {row.payrollId && (
                         <button
+                            type="button"
                             title="Open Payroll"
                             className="p-1 rounded text-teal-700 hover:bg-teal-50 transition cursor-pointer"
                             onClick={() => navigate(`/dashboard/payroll/print/${row.payrollId}`)}
@@ -328,7 +374,7 @@ const Leaveledger = () => {
             ),
             width: '120px'
         },
-    ];
+    ], [canEdit, canDelete, handleOpen, handleDelete, navigate]);
 
     const branchOptions = [
         { label: 'All Branches', value: 'all' },
@@ -352,15 +398,26 @@ const Leaveledger = () => {
     return (
         <div className="max-w-7xl mx-auto w-full p-2 md:p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    <div className="w-full sm:w-64">
-                        <Input
-                            size="sm"
-                            startIcon={Search}
-                            placeholder="Search employee name..."
+                <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <div className="relative w-full sm:w-64">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Search employee or policy..."
                             value={filters.searchText}
                             onChange={(e) => handleFilterChange("searchText", e.target.value)}
+                            className="w-full h-9 pl-8 pr-7 text-xs text-slate-600 placeholder:text-slate-400 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition"
                         />
+                        {filters.searchText && (
+                            <button
+                                type="button"
+                                onClick={() => handleFilterChange("searchText", "")}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                aria-label="Clear search"
+                            >
+                                <X size={13} />
+                            </button>
+                        )}
                     </div>
 
                     <div className="w-full sm:w-48">
@@ -373,32 +430,42 @@ const Leaveledger = () => {
                     </div>
                 </div>
 
-                <div className="w-full md:w-auto flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleBulkOpen}
-                    >
-                        Bulk Add Leave
-                    </Button>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        startIcon={Plus}
-                        onClick={() => handleOpen()}
-                    >
-                        Add Leave Balance
-                    </Button>
-                </div>
+                {canCreate && (
+                    <div className="w-full md:w-auto flex flex-wrap gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleBulkOpen}
+                        >
+                            Bulk Add Leave
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            startIcon={Plus}
+                            onClick={() => handleOpen()}
+                        >
+                            Add Leave Balance
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs">
                 <DataTable
                     columns={columns}
                     data={filteredEmployees}
+                    progressPending={tableLoading}
                     pagination
                     highlightOnHover
-                    customStyles={useCustomStyles()}
+                    customStyles={customTableStyles}
+                    noDataComponent={
+                        <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
+                            <AlertCircle size={26} className="text-slate-400 mb-2" />
+                            <p className="text-sm font-medium">No leave balance records found</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Try adjusting your filters or add a leave balance.</p>
+                        </div>
+                    }
                 />
             </div>
 
@@ -406,16 +473,16 @@ const Leaveledger = () => {
             <Modalbox
                 open={open}
                 onClose={handleClose}
-                title={isBulk ? "Bulk Add Leave Balance" : editingId ? "Edit Leave Balance" : "Add Leave Balance"}
-                subtitle="Allot or debit employee leave balances"
+                title={isBulk ? "Bulk Add Leave Balance" : editingId ? "Adjust Leave Balance" : "Add Leave Balance"}
+                subtitle={editingId ? "Credit or debit leave days for this employee & policy" : "Allot or debit employee leave balances"}
                 maxWidth="max-w-lg"
                 footer={
                     <>
-                        <Button variant="outline" type="button" onClick={handleClose}>
+                        <Button variant="outline" size="sm" type="button" onClick={handleClose}>
                             Cancel
                         </Button>
-                        <Button form="leave-ledger-form" variant="primary" type="submit" loading={loading}>
-                            {editingId ? "Update Balance" : "Save Balance"}
+                        <Button form="leave-ledger-form" variant="primary" size="sm" type="submit" loading={submitting}>
+                            {editingId ? "Adjust Balance" : "Save Balance"}
                         </Button>
                     </>
                 }
@@ -431,6 +498,7 @@ const Leaveledger = () => {
                         <SearchableSelect
                             label="Select Employee"
                             required
+                            disabled={Boolean(editingId)}
                             options={employeeOptions}
                             placeholder="Select Employee..."
                             searchPlaceholder="Search employee name or ID..."
@@ -442,6 +510,8 @@ const Leaveledger = () => {
 
                     <Select
                         label="Leave Policy"
+                        required
+                        disabled={Boolean(editingId)}
                         options={policyOptions}
                         placeholder="Select Policy..."
                         value={form.policyId}
@@ -482,10 +552,10 @@ const Leaveledger = () => {
                 </form>
             </Modalbox>
 
-            <LeaveHistoryModal 
-                open={historyOpen} 
-                onClose={() => setHistoryOpen(false)} 
-                employee={historyEmployee} 
+            <LeaveHistoryModal
+                open={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+                employee={historyEmployee}
             />
         </div>
     );

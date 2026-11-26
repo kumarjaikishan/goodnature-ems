@@ -46,15 +46,20 @@ const addleavebalance = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { employeeId, branchId, policyId, type, amount: rawAmount, remarks } = req.body;
+    const { employeeId, policyId, type, amount: rawAmount, remarks } = req.body;
     const amount = Number(rawAmount);
 
-    if (isNaN(amount)) {
-      throw new Error("Invalid amount provided");
+    if (!employeeId) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Employee is required" });
     }
-
     if (!policyId) {
-      throw new Error("Policy ID is required");
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Leave policy is required" });
+    }
+    if (isNaN(amount) || amount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
     }
 
     const currentBalance = await LeaveBalance.findOne({ employeeId, policyId }).session(session);
@@ -68,6 +73,7 @@ const addleavebalance = async (req, res) => {
       balanceBefore,
       balanceAfter: type === "credit" ? balanceBefore + amount : balanceBefore - amount,
       source: 'manual',
+      actionBy: req.user?.id,
       remarks
     }], { session });
 
@@ -106,10 +112,10 @@ const getallleavebalnce = async (req, res) => {
     let balanceQuery = LeaveBalance.find(query)
       .populate({
         path: "employeeId",
-        select: "userid",
+        select: "userid empId designation profileimage",
         populate: { path: "userid", select: "name" },
       })
-      .populate("policyId", "name")
+      .populate("policyId", "name allocationType")
       .sort({ createdAt: -1 });
 
     let total = 0;
@@ -143,6 +149,7 @@ const getLeaveTransactions = async (req, res) => {
         const { employeeId } = req.params;
         const transactions = await LeaveTransaction.find({ employeeId })
             .populate("policyId", "name")
+            .populate("actionBy", "name")
             .sort({ createdAt: -1 });
         
         res.status(200).json(transactions);
@@ -211,6 +218,7 @@ const getMyLeaveTransactions = async (req, res) => {
 
         const transactions = await LeaveTransaction.find({ employeeId })
             .populate("policyId", "name")
+            .populate("actionBy", "name")
             .sort({ createdAt: -1 });
         
         res.status(200).json(transactions);
@@ -227,12 +235,14 @@ const updateleavebalance = async (req, res) => {
     const { type, amount: rawAmount, remarks } = req.body;
     const amount = Number(rawAmount);
 
-    if (isNaN(amount)) {
-      throw new Error("Invalid amount provided");
+    if (isNaN(amount) || amount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
     }
 
     const summary = await LeaveBalance.findById(id).session(session);
     if (!summary) {
+      await session.abortTransaction();
       return res.status(404).json({ success: false, message: "Leave balance record not found" });
     }
 
@@ -247,6 +257,7 @@ const updateleavebalance = async (req, res) => {
       balanceBefore,
       balanceAfter: type === "credit" ? balanceBefore + amount : balanceBefore - amount,
       source: 'manual',
+      actionBy: req.user?.id,
       remarks: remarks || "Balance adjustment"
     }], { session });
 
@@ -279,18 +290,21 @@ const bulkAddLeaveBalance = async (req, res) => {
     const { policyId, type, amount: rawAmount, remarks } = req.body;
     const amount = Number(rawAmount);
 
-    if (isNaN(amount)) {
-      throw new Error("Invalid amount provided");
+    if (isNaN(amount) || amount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
     }
 
     if (!policyId) {
-      throw new Error("Policy ID is required");
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Leave policy is required" });
     }
 
     const Employee = require("../models/employee");
     const activeEmployees = await Employee.find({ status: { $ne: false } }).session(session);
 
     if (activeEmployees.length === 0) {
+      await session.abortTransaction();
       return res.status(400).json({ success: false, message: "No active employees found" });
     }
 
@@ -308,6 +322,7 @@ const bulkAddLeaveBalance = async (req, res) => {
         balanceBefore,
         balanceAfter: type === "credit" ? balanceBefore + amount : balanceBefore - amount,
         source: 'manual',
+        actionBy: req.user?.id,
         remarks: remarks || "Bulk leave adjustment"
       }], { session });
     }

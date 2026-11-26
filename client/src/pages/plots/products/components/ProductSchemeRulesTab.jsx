@@ -334,11 +334,11 @@ const ProductSchemeRulesTab = ({ onSchemeUpdated }) => {
                   <th className="p-3 bg-teal-50/70 border-l border-teal-200">
                     <div className="text-teal-950">
                       <div className="flex items-center gap-1.5 font-extrabold">
-                        <Coins size={14} className="text-teal-700" />
-                        <span>Customer Return</span>
+                        <Coins size={14} className="text-teal-700 shrink-0" />
+                        <span>After Booking Cancel Return</span>
                       </div>
                       <span className="text-[9px] font-semibold text-teal-700 block mt-0.5">
-                        Rate (% p.a.) | Total Maturity Return (%)
+                        Compound Annual Interest % | Total Maturity Return (%)
                       </span>
                     </div>
                   </th>
