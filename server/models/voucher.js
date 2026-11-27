@@ -1,11 +1,21 @@
 const mongoose = require('mongoose');
 
+const receiverBankDetailsSchema = new mongoose.Schema({
+  accountHolderName: { type: String, default: '' },
+  bankName: { type: String, default: '' },
+  accountNumber: { type: String, default: '' },
+  ifscCode: { type: String, default: '' },
+  branchName: { type: String, default: '' },
+  upiId: { type: String, default: '' },
+}, { _id: false });
+
 const paymentTrancheSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   paymentDate: { type: Date, default: Date.now },
   paymentMode: { type: String, enum: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'UPI', 'NEFT_RTGS'], default: 'CASH' },
   paymentLedgerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ledger' },
   referenceNo: { type: String, default: '' },
+  receiverBankDetails: { type: receiverBankDetailsSchema, default: undefined },
   remarks: { type: String, default: '' },
   paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
@@ -47,6 +57,7 @@ const voucherSchema = new mongoose.Schema({
 
   // Partial / split payment disbursement tranches
   paymentTranches: [paymentTrancheSchema],
+  receiverBankDetails: { type: receiverBankDetailsSchema, default: undefined },
 
   entries: [{
     accountName: { type: String, required: true }, // e.g. "Salary Expense", "Employee Payable"

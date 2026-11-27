@@ -112,6 +112,8 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
             { menu: 'Investment EMI', link: '/dashboard/plots/collections/products/emi', roles: OPERATIONAL_ROLES, resource: 'plot_collection' },
             { menu: 'Advance', link: '/dashboard/advance', roles: OPERATIONAL_ROLES, resource: 'advance' },
             { menu: 'Vouchers', link: '/dashboard/vouchers', roles: OPERATIONAL_ROLES, resource: 'voucher' },
+            { menu: 'Employee Pay', link: '/dashboard/account/employee-pay', roles: OPERATIONAL_ROLES, resource: 'employee_pay' },
+            { menu: 'Seller Pay', link: '/dashboard/account/seller-pay', roles: OPERATIONAL_ROLES, resource: 'seller_pay' },
           ],
         },
         {
@@ -154,7 +156,9 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
           icon: <Award size={20} />,
           roles: OPERATIONAL_ROLES,
           children: [
-            { menu: 'Business Developer', link: '/dashboard/plots/business-developer', roles: OPERATIONAL_ROLES, resource: ['associate', 'partner', 'plot_sponsor'] },
+            { menu: 'Branch Partner', link: '/dashboard/plots/branch-partners', roles: OPERATIONAL_ROLES, resource: ['branch_partner', 'plot_sponsor'] },
+            { menu: 'Business Partner', link: '/dashboard/plots/business-partners', roles: OPERATIONAL_ROLES, resource: ['partner', 'plot_sponsor'] },
+            { menu: 'Business Associate', link: '/dashboard/plots/business-associates', roles: OPERATIONAL_ROLES, resource: ['associate', 'plot_sponsor'] },
             { menu: 'Incentive Closing', link: '/dashboard/plots/incentives', roles: OPERATIONAL_ROLES, resource: 'plot_incentive' },
           ],
         },

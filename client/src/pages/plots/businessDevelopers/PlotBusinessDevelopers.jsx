@@ -51,7 +51,25 @@ import useImageUpload from '../../../utils/imageresizer';
 import { cloudinaryUrl } from '../../../utils/imageurlsetter';
 import usePermission from '../../../utils/CheckPermission';
 
-const PlotBusinessDevelopers = () => {
+const ROLE_PAGE_CONFIG = {
+  branch_partner: {
+    title: 'Branch Partners',
+    subtitle: 'Manage plot project branch partners and branch hierarchy',
+    searchPlaceholder: 'Search branch partner by ID (e.g. BRP-2627/001), name, mobile, email...',
+  },
+  partner: {
+    title: 'Business Partners',
+    subtitle: 'Manage plot project business partners and direct hierarchy',
+    searchPlaceholder: 'Search business partner by ID (e.g. BP-2627/001), name, mobile, email...',
+  },
+  associate: {
+    title: 'Business Associates',
+    subtitle: 'Manage plot project business associates and network',
+    searchPlaceholder: 'Search business associate by ID (e.g. BA-2627/001), name, mobile, email...',
+  },
+};
+
+const PlotBusinessDevelopers = ({ fixedRole = null }) => {
   const navigate = useNavigate();
   const { handleImage } = useImageUpload();
   const { branch, profile } = useSelector((state) => state.user || {});
@@ -165,8 +183,16 @@ const PlotBusinessDevelopers = () => {
   const { request, loading: submitLoading } = useApi();
 
   const fetchBusinessDevelopers = async () => {
-    // If user has no read permission for any partner role, do not fetch
-    if (!canReadBranchPartner && !canReadPartner && !canReadAssociate) {
+    const canReadCurrentRole = fixedRole === 'branch_partner'
+      ? canReadBranchPartner
+      : fixedRole === 'partner'
+        ? canReadPartner
+        : fixedRole === 'associate'
+          ? canReadAssociate
+          : (canReadBranchPartner || canReadPartner || canReadAssociate);
+
+    // If user has no read permission for the current/any partner role, do not fetch
+    if (!canReadCurrentRole) {
       setBusinessDevelopers([]);
       setLoading(false);
       return;
@@ -178,10 +204,11 @@ const PlotBusinessDevelopers = () => {
       if (selectedBranchFilter && selectedBranchFilter !== 'all') {
         params.branchId = selectedBranchFilter;
       }
-      
-      // Enforce roleType based on permissions
-      if (selectedRoleFilter && selectedRoleFilter !== 'all') {
-        params.roleType = selectedRoleFilter;
+
+      const activeRoleFilter = fixedRole || selectedRoleFilter;
+      // Enforce roleType based on fixedRole or permissions
+      if (activeRoleFilter && activeRoleFilter !== 'all') {
+        params.roleType = activeRoleFilter;
       } else if (!canReadPartner && !canReadBranchPartner && canReadAssociate) {
         params.roleType = 'associate';
       } else if (!canReadPartner && !canReadAssociate && canReadBranchPartner) {
@@ -198,10 +225,14 @@ const PlotBusinessDevelopers = () => {
       // Client-side safety filter
       const filtered = dataList.filter((dev) => {
         const isBRP = dev.isBranchPartner || (dev.sponsorCode && (dev.sponsorCode.startsWith('BRP-') || dev.sponsorCode.startsWith('BR-')));
-        const isAssoc = Boolean(dev.sponsorId);
+        const isBA = !isBRP && (dev.sponsorCode?.startsWith('BA-') || (dev.sponsorId && !dev.sponsorCode?.startsWith('BP-') && !dev.sponsorId?.isBranchPartner && !dev.sponsorId?.sponsorCode?.startsWith('BRP-')));
+        const isBP = !isBRP && !isBA;
+        if (fixedRole === 'branch_partner' && !isBRP) return false;
+        if (fixedRole === 'partner' && !isBP) return false;
+        if (fixedRole === 'associate' && !isBA) return false;
         if (isBRP && !canReadBranchPartner) return false;
-        if (!isBRP && isAssoc && !canReadAssociate) return false;
-        if (!isBRP && !isAssoc && !canReadPartner) return false;
+        if (isBA && !canReadAssociate) return false;
+        if (isBP && !canReadPartner) return false;
         return true;
       });
       setBusinessDevelopers(filtered);
@@ -238,7 +269,7 @@ const PlotBusinessDevelopers = () => {
 
   useEffect(() => {
     fetchBusinessDevelopers();
-  }, [search, selectedBranchFilter, selectedRoleFilter]);
+  }, [search, selectedBranchFilter, selectedRoleFilter, fixedRole]);
 
   useEffect(() => {
     fetchBusinessPartners();
@@ -795,16 +826,22 @@ const PlotBusinessDevelopers = () => {
     },
   ];
 
+  const pageConfig = ROLE_PAGE_CONFIG[fixedRole] || {
+    title: 'Business Developers',
+    subtitle: 'Manage plot project business partners, associates, and hierarchy',
+    searchPlaceholder: 'Search business developer by ID (e.g. P/2627/001, A/2627/001), name, mobile, email...',
+  };
+
   return (
     <div className="p-6 bg-slate-50 min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Business Developers</h1>
-          <p className="text-slate-500 text-sm">Manage plot project business partners, associates, and hierarchy</p>
+          <h1 className="text-2xl font-bold text-slate-800">{pageConfig.title}</h1>
+          <p className="text-slate-500 text-sm">{pageConfig.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {canCreateBranchPartner && (
+          {(!fixedRole || fixedRole === 'branch_partner') && canCreateBranchPartner && (
             <Button
               variant="primary"
               size="md"
@@ -815,7 +852,7 @@ const PlotBusinessDevelopers = () => {
               Create Branch Partner
             </Button>
           )}
-          {canCreatePartner && (
+          {(!fixedRole || fixedRole === 'partner') && canCreatePartner && (
             <Button
               variant="primary"
               size="md"
@@ -826,7 +863,7 @@ const PlotBusinessDevelopers = () => {
               Create Business Partner
             </Button>
           )}
-          {canCreateAssociate && (
+          {(!fixedRole || fixedRole === 'associate') && canCreateAssociate && (
             <Button
               variant="primary"
               size="md"
@@ -846,41 +883,43 @@ const PlotBusinessDevelopers = () => {
           <Search size={18} className="text-slate-400 shrink-0" />
           <input
             type="text"
-            placeholder="Search business developer by ID (e.g. P/2627/001, A/2627/001), name, mobile, email..."
+            placeholder={pageConfig.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-transparent outline-none text-slate-700 text-sm"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
-          {/* Role / Hierarchy Filter */}
-          <div className="flex items-center gap-1.5 w-full sm:w-60">
-            <Crown size={15} className="text-amber-600 shrink-0" />
-            <div className="flex-1">
-              <Select
-                size="sm"
-                value={selectedRoleFilter}
-                onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                options={(() => {
-                  const opts = [];
-                  const allowedCount = (canReadBranchPartner ? 1 : 0) + (canReadPartner ? 1 : 0) + (canReadAssociate ? 1 : 0);
-                  if (allowedCount > 1) {
-                    opts.push({ value: 'all', label: 'All Roles (Branch, BP & BA)' });
-                  }
-                  if (canReadBranchPartner) {
-                    opts.push({ value: 'branch_partner', label: '🏢 Branch Partners' });
-                  }
-                  if (canReadPartner) {
-                    opts.push({ value: 'partner', label: '👑 Business Partners (P/)' });
-                  }
-                  if (canReadAssociate) {
-                    opts.push({ value: 'associate', label: '👥 Business Associates (A/)' });
-                  }
-                  return opts.length > 0 ? opts : [{ value: 'none', label: 'No Access' }];
-                })()}
-              />
+          {/* Role / Hierarchy Filter (only shown on combined Business Developers page) */}
+          {!fixedRole && (
+            <div className="flex items-center gap-1.5 w-full sm:w-60">
+              <Crown size={15} className="text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <Select
+                  size="sm"
+                  value={selectedRoleFilter}
+                  onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                  options={(() => {
+                    const opts = [];
+                    const allowedCount = (canReadBranchPartner ? 1 : 0) + (canReadPartner ? 1 : 0) + (canReadAssociate ? 1 : 0);
+                    if (allowedCount > 1) {
+                      opts.push({ value: 'all', label: 'All Roles (Branch, BP & BA)' });
+                    }
+                    if (canReadBranchPartner) {
+                      opts.push({ value: 'branch_partner', label: '🏢 Branch Partners' });
+                    }
+                    if (canReadPartner) {
+                      opts.push({ value: 'partner', label: '👑 Business Partners (P/)' });
+                    }
+                    if (canReadAssociate) {
+                      opts.push({ value: 'associate', label: '👥 Business Associates (A/)' });
+                    }
+                    return opts.length > 0 ? opts : [{ value: 'none', label: 'No Access' }];
+                  })()}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Branch Filter */}
           <div className="flex items-center gap-1.5 w-full sm:w-56">

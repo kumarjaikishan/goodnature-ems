@@ -63,6 +63,8 @@ const Navbar = () => {
     "leave-policies": "Leave Policies",
     "attandence-import": "Attendance Import",
     "vouchers": "Vouchers",
+    "employee-pay": "Employee Pay",
+    "seller-pay": "Seller Pay",
     "activity-logs": "Activity Logs",
     // Ledger Titles
     "banks": "Bank Accounts",

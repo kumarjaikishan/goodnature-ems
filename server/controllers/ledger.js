@@ -444,7 +444,13 @@ const createLedgerForBranches = async () => {
     const branches = await Branch.find({}, null, session ? { session } : {});
 
     for (const b of branches) {
-      const q = Ledger.findOne({ branchId: b._id });
+      const q = Ledger.findOne({
+        branchId: b._id,
+        ledgerType: 'branch',
+        employeeId: { $in: [null, undefined] },
+        sponsorId: { $in: [null, undefined] },
+        kisanSellerId: { $in: [null, undefined] }
+      });
       if (session) q.session(session);
       let ledger = await q;
 
@@ -569,11 +575,11 @@ const ledger = async (req, res) => {
     let query = Ledger.find(filter)
       .populate({
         path: 'employeeId',
-        select: 'status employeeName empId profileimage'
+        select: 'status employeeName empId profileimage acHolderName bankName bankbranch acnumber ifscCode upi'
       })
       .populate({
         path: 'kisanSellerId',
-        select: 'name mobile panNumber aadhaarNumber address'
+        select: 'name mobile panNumber aadhaarNumber address bankDetails'
       })
       .populate({
         path: 'assignedUserId',
@@ -581,7 +587,7 @@ const ledger = async (req, res) => {
       })
       .populate({
         path: 'sponsorId',
-        select: 'name sponsorCode customerId email mobile role isBranchPartner sponsorId branchIds photo profileImage',
+        select: 'name sponsorCode customerId email mobile role isBranchPartner sponsorId branchIds photo profileImage accountHolderName bankName bankBranch accountNumber ifscCode',
         populate: [
           { path: 'sponsorId', select: 'name sponsorCode role' },
           { path: 'branchIds', select: 'name location branchCode' }

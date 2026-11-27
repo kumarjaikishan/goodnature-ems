@@ -14,6 +14,11 @@ import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
+import ReceiverBankFields, {
+  EMPTY_RECEIVER_BANK,
+  extractReceiverBankDetails,
+  sanitizeReceiverBankPayload,
+} from "./ReceiverBankFields";
 import Modalbox from "@/components/custommodal/Modalbox";
 import Input from "@/components/ui/Input";
 import NumberInput from "@/components/ui/NumberInput";
@@ -42,6 +47,7 @@ const VoucherDetails = () => {
   const [approvePaymentMode, setApprovePaymentMode] = useState("CASH");
   const [approvePaymentLedgerId, setApprovePaymentLedgerId] = useState("");
   const [approveReferenceNo, setApproveReferenceNo] = useState("");
+  const [approveReceiverBank, setApproveReceiverBank] = useState({ ...EMPTY_RECEIVER_BANK });
 
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [submittingReject, setSubmittingReject] = useState(false);
@@ -55,6 +61,7 @@ const VoucherDetails = () => {
   const [paymentLedgerId, setPaymentLedgerId] = useState("");
   const [paymentReferenceNo, setPaymentReferenceNo] = useState("");
   const [paymentRemarks, setPaymentRemarks] = useState("");
+  const [paymentReceiverBank, setPaymentReceiverBank] = useState({ ...EMPTY_RECEIVER_BANK });
 
   // Treasury state
   const [myCashLedger, setMyCashLedger] = useState(null);
@@ -151,6 +158,7 @@ const VoucherDetails = () => {
     setApprovePaymentMode("CASH");
     setApprovePaymentLedgerId(myCashLedger?._id || "");
     setApproveReferenceNo("");
+    setApproveReceiverBank(extractReceiverBankDetails(voucher));
     setOpenApproveModal(true);
   };
 
@@ -179,7 +187,8 @@ const VoucherDetails = () => {
           disbursementAmount: disbAmt,
           paymentMode: approvePaymentMode,
           paymentLedgerId: disbAmt > 0 ? (approvePaymentLedgerId || null) : null,
-          referenceNo: approveReferenceNo
+          referenceNo: approveReferenceNo,
+          receiverBankDetails: approvePaymentMode !== 'CASH' ? sanitizeReceiverBankPayload(approveReceiverBank) : null
         }
       });
 
@@ -241,6 +250,7 @@ const VoucherDetails = () => {
     setPaymentLedgerId(myCashLedger?._id || "");
     setPaymentReferenceNo("");
     setPaymentRemarks("");
+    setPaymentReceiverBank(extractReceiverBankDetails(voucher));
     setOpenPaymentModal(true);
   };
 
@@ -272,7 +282,8 @@ const VoucherDetails = () => {
           paymentMode,
           paymentLedgerId: paymentLedgerId || null,
           referenceNo: paymentReferenceNo,
-          remarks: paymentRemarks
+          remarks: paymentRemarks,
+          receiverBankDetails: paymentMode !== 'CASH' ? sanitizeReceiverBankPayload(paymentReceiverBank) : null
         }
       });
 
@@ -649,7 +660,7 @@ const VoucherDetails = () => {
               </div>
 
               {/* Meta details bar */}
-              <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1.2fr 1.2fr", gap: "8px", marginTop: "12px", background: "transparent", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "6px 10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.5fr 1fr 1fr", gap: "16px", alignItems: "start", marginTop: "12px", background: "transparent", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "8px 12px" }}>
                 <div>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Paid To (Ledger Account)</span>
                   <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>
@@ -658,7 +669,7 @@ const VoucherDetails = () => {
                 </div>
                 <div>
                   <span style={{ fontSize: "9px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "block" }}>Mode</span>
-                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f766e" }}>
+                  <span style={{ fontSize: "12px", fontWeight: "800", color: "#0f172a" }}>
                     {paymentModeDisplay}
                   </span>
                 </div>
@@ -890,7 +901,18 @@ const VoucherDetails = () => {
                       </span>
                     </td>
                     <td className="p-2.5 font-mono text-slate-600">
-                      {tranche.referenceNo || "-"}
+                      <div>{tranche.referenceNo || "-"}</div>
+                      {tranche.receiverBankDetails && (
+                        <div className="text-[10px] font-sans text-slate-500 mt-0.5 leading-tight">
+                          {[
+                            tranche.receiverBankDetails.accountHolderName,
+                            tranche.receiverBankDetails.bankName,
+                            tranche.receiverBankDetails.accountNumber ? `A/C: ${tranche.receiverBankDetails.accountNumber}` : '',
+                            tranche.receiverBankDetails.ifscCode ? `IFSC: ${tranche.receiverBankDetails.ifscCode}` : '',
+                            tranche.receiverBankDetails.upiId ? `UPI: ${tranche.receiverBankDetails.upiId}` : '',
+                          ].filter(Boolean).join(' • ')}
+                        </div>
+                      )}
                     </td>
                     <td className="p-2.5 text-slate-700 font-medium">
                       {tranche.paidBy?.name || tranche.paidBy?.email || "System"}
@@ -1018,6 +1040,12 @@ const VoucherDetails = () => {
                 />
               </div>
             )}
+            <ReceiverBankFields
+              paymentMode={approvePaymentMode}
+              value={approveReceiverBank}
+              onChange={setApproveReceiverBank}
+              size="sm"
+            />
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1192,6 +1220,13 @@ const VoucherDetails = () => {
               onChange={(e) => setPaymentReferenceNo(e.target.value)}
             />
           )}
+
+          <ReceiverBankFields
+            paymentMode={paymentMode}
+            value={paymentReceiverBank}
+            onChange={setPaymentReceiverBank}
+            size="sm"
+          />
 
           <Input
             label="Payment Remarks / Notes"

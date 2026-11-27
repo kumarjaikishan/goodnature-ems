@@ -39,6 +39,7 @@ const FundTransfersPage = lazy(() => import('../pages/admin/ledger/FundTransfers
 const LedgerDetailPage = lazy(() => import('../pages/admin/ledger/ledgerdetailpage'));
 const VoucherList = lazy(() => import('../pages/vouchers/VoucherList'));
 const VoucherDetails = lazy(() => import('../pages/vouchers/VoucherDetails'));
+const DirectPayPage = lazy(() => import('../pages/account/DirectPayPage'));
 const AttendanceExcelImport = lazy(() => import('../pages/admin/attandence/AttendanceExcelImport'));
 const ActivityLogs = lazy(() => import('../pages/admin/activityLogs/ActivityLogs'));
 const AdminManagerProfile = lazy(() => import('../pages/profile/adminManagerProfile'));
@@ -140,6 +141,8 @@ const ManagementRoutes = () => (
       <Route path="payroll/edit/:id" element={<RoutePermissionGuard resource="salary" action={3}><PayrollEdit /></RoutePermissionGuard>} />
       <Route path="vouchers" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherList /></RoutePermissionGuard>} />
       <Route path="vouchers/:id" element={<RoutePermissionGuard resource="voucher" action={1}><VoucherDetails /></RoutePermissionGuard>} />
+      <Route path="account/employee-pay" element={<RoutePermissionGuard resource="employee_pay" action={1}><DirectPayPage mode="employee" /></RoutePermissionGuard>} />
+      <Route path="account/seller-pay" element={<RoutePermissionGuard resource="seller_pay" action={1}><DirectPayPage mode="seller" /></RoutePermissionGuard>} />
 
       <Route path="plots/purchase" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
       <Route path="plots/purchasers" element={<RoutePermissionGuard resource={["purchasers_master", "plot_purchase", "plot_inventory"]} action={1}><PurchasersMasterPage /></RoutePermissionGuard>} />
@@ -150,8 +153,11 @@ const ManagementRoutes = () => (
       <Route path="plots/agreements/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
       <Route path="plots/kisan-land/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
       <Route path="plots/inventory" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
-      <Route path="plots/business-developer" element={<RoutePermissionGuard resource={["associate", "partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
-      <Route path="plots/business-developers" element={<RoutePermissionGuard resource={["associate", "partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
+      <Route path="plots/branch-partners" element={<RoutePermissionGuard resource={["branch_partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers fixedRole="branch_partner" /></RoutePermissionGuard>} />
+      <Route path="plots/business-partners" element={<RoutePermissionGuard resource={["partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers fixedRole="partner" /></RoutePermissionGuard>} />
+      <Route path="plots/business-associates" element={<RoutePermissionGuard resource={["associate", "plot_sponsor"]} action={1}><PlotBusinessDevelopers fixedRole="associate" /></RoutePermissionGuard>} />
+      <Route path="plots/business-developer" element={<RoutePermissionGuard resource={["branch_partner", "associate", "partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
+      <Route path="plots/business-developers" element={<RoutePermissionGuard resource={["branch_partner", "associate", "partner", "plot_sponsor"]} action={1}><PlotBusinessDevelopers /></RoutePermissionGuard>} />
       <Route path="plots/business-developer/:id/ledger" element={<RoutePermissionGuard resource={["associate_ledger", "partner_ledger", "branch_ledger", "ledger"]} action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
       <Route path="plots/business-developers/:id/ledger" element={<RoutePermissionGuard resource={["associate_ledger", "partner_ledger", "branch_ledger", "ledger"]} action={1}><BusinessDeveloperLedgerPage /></RoutePermissionGuard>} />
       <Route path="plots/business-developer/:id/business-report" element={<RoutePermissionGuard resource="plot_reports" action={1}><BusinessDeveloperReportPage /></RoutePermissionGuard>} />

@@ -21,6 +21,12 @@ import Button from "@/components/ui/Button";
 import Modalbox from "@/components/custommodal/Modalbox";
 import Badge from "@/components/ui/Badge";
 import { usePermission } from "../../utils/CheckPermission";
+import ReceiverBankFields, {
+  EMPTY_RECEIVER_BANK,
+  extractReceiverBankDetails,
+  sanitizeReceiverBankPayload,
+} from "./ReceiverBankFields";
+import CustomLedgerReportTab from "./CustomLedgerReportTab";
 
 const VoucherList = () => {
   const navigate = useNavigate();
@@ -43,12 +49,12 @@ const VoucherList = () => {
 
   // Tab State: "vouchers" or "ledgers" synced with ?tab= query parameter
   const tabFromUrl = searchParams.get('tab');
-  const activeTab = tabFromUrl === 'ledgers' ? 'ledgers' : 'vouchers';
+  const activeTab = tabFromUrl === 'ledgers' ? 'ledgers' : (tabFromUrl === 'report' ? 'report' : 'vouchers');
 
   const handleTabChange = (newTab) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (newTab === 'ledgers') {
-      nextParams.set('tab', 'ledgers');
+    if (newTab === 'ledgers' || newTab === 'report') {
+      nextParams.set('tab', newTab);
     } else {
       nextParams.delete('tab');
     }
@@ -69,7 +75,6 @@ const VoucherList = () => {
   const [searchText, setSearchText] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedFilterLedgerId, setSelectedFilterLedgerId] = useState("");
   const [selectedReferenceType, setSelectedReferenceType] = useState("all");
   const [voucherSortKey, setVoucherSortKey] = useState(() => {
     return localStorage.getItem("voucher_sort_key") || "voucherNo";
@@ -114,6 +119,7 @@ const VoucherList = () => {
   const [approvePaymentMode, setApprovePaymentMode] = useState("CASH");
   const [approvePaymentLedgerId, setApprovePaymentLedgerId] = useState("");
   const [approveReferenceNo, setApproveReferenceNo] = useState("");
+  const [approveReceiverBank, setApproveReceiverBank] = useState({ ...EMPTY_RECEIVER_BANK });
 
   // Rejection Modal State
   const [openRejectModal, setOpenRejectModal] = useState(false);
@@ -131,6 +137,7 @@ const VoucherList = () => {
   const [paymentLedgerId, setPaymentLedgerId] = useState("");
   const [paymentReferenceNo, setPaymentReferenceNo] = useState("");
   const [paymentRemarks, setPaymentRemarks] = useState("");
+  const [paymentReceiverBank, setPaymentReceiverBank] = useState({ ...EMPTY_RECEIVER_BANK });
 
   // Custom Ledger Management Modal State
   const [openLedgerModal, setOpenLedgerModal] = useState(false);
@@ -327,6 +334,7 @@ const VoucherList = () => {
     setApprovePaymentMode(defPaymentMode);
     setApprovePaymentLedgerId(defPaymentLedger);
     setApproveReferenceNo(v.paymentTranches?.[0]?.referenceNo || "");
+    setApproveReceiverBank(extractReceiverBankDetails(v, ledgers));
     setOpenApproveModal(true);
   };
 
@@ -356,7 +364,8 @@ const VoucherList = () => {
           disbursementAmount: disbAmt,
           paymentMode: approvePaymentMode,
           paymentLedgerId: disbAmt > 0 ? approvePaymentLedgerId : null,
-          referenceNo: approveReferenceNo
+          referenceNo: approveReferenceNo,
+          receiverBankDetails: approvePaymentMode !== "CASH" ? sanitizeReceiverBankPayload(approveReceiverBank) : null
         }
       });
 
@@ -427,6 +436,7 @@ const VoucherList = () => {
     setPaymentLedgerId(myCashLedger?._id || "");
     setPaymentReferenceNo("");
     setPaymentRemarks("");
+    setPaymentReceiverBank(extractReceiverBankDetails(v, ledgers));
     setOpenPaymentModal(true);
   };
 
@@ -458,7 +468,8 @@ const VoucherList = () => {
           paymentMode,
           paymentLedgerId: paymentLedgerId || null,
           referenceNo: paymentReferenceNo,
-          remarks: paymentRemarks
+          remarks: paymentRemarks,
+          receiverBankDetails: paymentMode !== "CASH" ? sanitizeReceiverBankPayload(paymentReceiverBank) : null
         }
       });
 
@@ -580,8 +591,6 @@ const VoucherList = () => {
     }
   };
 
-  const selectedFilterLedger = ledgers.find(l => l._id === selectedFilterLedgerId);
-
   // Filter vouchers based on search text and status
   const filteredVouchers = (Array.isArray(vouchers) ? vouchers : []).filter((v) => {
     const debitEntry = v.entries?.find(e => e.type === 'DEBIT');
@@ -594,21 +603,18 @@ const VoucherList = () => {
     }
 
     // Search filter
+    const q = searchText.trim().toLowerCase();
     const matchesSearch =
-      v.voucherNo.toLowerCase().includes(searchText.toLowerCase()) ||
-      ledgerName.toLowerCase().includes(searchText.toLowerCase()) ||
-      (v.remarks && v.remarks.toLowerCase().includes(searchText.toLowerCase()));
+      !q ||
+      (v.voucherNo || "").toLowerCase().includes(q) ||
+      ledgerName.toLowerCase().includes(q) ||
+      (v.remarks && v.remarks.toLowerCase().includes(q));
 
     // Reference Type filter
     const matchesRefType =
       selectedReferenceType === "all" ||
       (selectedReferenceType === "MANUAL" && v.referenceType === "MANUAL") ||
       (selectedReferenceType === "SYSTEM" && v.referenceType !== "MANUAL");
-
-    // Ledger filter
-    const matchesLedger =
-      !selectedFilterLedgerId ||
-      ledgerName === selectedFilterLedger?.name;
 
     // Date Range filter
     let matchesDate = true;
@@ -620,7 +626,7 @@ const VoucherList = () => {
       matchesDate = matchesDate && vDateStr <= endDate;
     }
 
-    return matchesSearch && matchesRefType && matchesLedger && matchesDate;
+    return matchesSearch && matchesRefType && matchesDate;
   });
 
   // Filter custom ledgers based on search text
@@ -1108,6 +1114,15 @@ const VoucherList = () => {
             >
               Manage Custom Ledgers
             </button>
+            <button
+              onClick={() => handleTabChange("report")}
+              className={`py-2.5 px-4 font-bold border-b-2 text-sm transition-all outline-none cursor-pointer ${activeTab === "report"
+                ? "border-teal-700 text-teal-800"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+            >
+              Custom Ledger Report
+            </button>
           </div>
 
           <div className="pb-2">
@@ -1122,7 +1137,7 @@ const VoucherList = () => {
                   Create Voucher
                 </Button>
               )
-            ) : (
+            ) : activeTab === "ledgers" ? (
               canCreateLedger && (
                 <Button
                   variant="secondary"
@@ -1133,7 +1148,7 @@ const VoucherList = () => {
                   Create Custom Ledger
                 </Button>
               )
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -1171,85 +1186,85 @@ const VoucherList = () => {
           </div>
         )}
 
-        {/* Filter and Search Bar */}
+        {/* Filter and Search Bar (Vouchers & Manage Custom Ledgers tabs) */}
+        {activeTab !== "report" && (
         <div className="p-4 border-b border-slate-100 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          {activeTab === "vouchers" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+              <div className="sm:col-span-2 lg:col-span-5">
+                <Input
+                  size="sm"
+                  label="Search"
+                  startIcon={Search}
+                  placeholder="Search Voucher No, Ledger, Narration..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <DateInput
+                  size="sm"
+                  label="Start Date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <DateInput
+                  size="sm"
+                  label="End Date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+              <div className="lg:col-span-3 flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <Select
+                    size="sm"
+                    label="Source Type"
+                    options={[
+                      { label: "All Vouchers", value: "all" },
+                      { label: "Manual Receipts", value: "MANUAL" },
+                      { label: "System Generated", value: "SYSTEM" },
+                    ]}
+                    value={selectedReferenceType}
+                    onChange={(e) => setSelectedReferenceType(e.target.value)}
+                  />
+                </div>
+                {(startDate || endDate || selectedReferenceType !== "all" || statusFilter !== "all" || searchText.trim()) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                      setSelectedReferenceType("all");
+                      setStatusFilter("all");
+                      setSearchText("");
+                    }}
+                    title="Clear Filters"
+                    className="shrink-0"
+                  >
+                    <X size={14} />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
             <div className="w-full md:w-80">
               <Input
                 size="sm"
                 startIcon={Search}
-                placeholder={
-                  activeTab === "vouchers"
-                    ? "Search Voucher No, Ledger, Narration..."
-                    : "Search Custom Ledgers..."
-                }
+                placeholder="Search Custom Ledgers..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
               />
             </div>
-
-            {activeTab === "vouchers" && (
-              <div className="flex flex-wrap gap-2 items-center">
-                {(startDate || endDate || selectedFilterLedgerId || selectedReferenceType !== "all" || statusFilter !== "all") && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    startIcon={X}
-                    onClick={() => {
-                      setStartDate("");
-                      setEndDate("");
-                      setSelectedFilterLedgerId("");
-                      setSelectedReferenceType("all");
-                      setStatusFilter("all");
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Vouchers Specific Filters */}
-          {activeTab === "vouchers" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-              <DateInput
-                size="md"
-                label="Start Date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-              <DateInput
-                size="md"
-                label="End Date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-              <SearchableSelect
-                size="md"
-                label="Filter by Ledger"
-                options={allLedgersSelectOptions}
-                placeholder="All Ledgers"
-                value={selectedFilterLedgerId}
-                onChange={(val) => setSelectedFilterLedgerId(val)}
-                allowClear
-              />
-              <Select
-                size="md"
-                label="Source Type"
-                options={[
-                  { label: "All Vouchers", value: "all" },
-                  { label: "Manual Receipts", value: "MANUAL" },
-                  { label: "System Generated", value: "SYSTEM" },
-                ]}
-                value={selectedReferenceType}
-                onChange={(e) => setSelectedReferenceType(e.target.value)}
-              />
-            </div>
           )}
         </div>
+        )}
 
-        {/* Data Table */}
+        {/* Data Table / Tab Body */}
         <div className="overflow-hidden">
           {activeTab === "vouchers" ? (
             <DataTable
@@ -1280,7 +1295,7 @@ const VoucherList = () => {
                 </div>
               }
             />
-          ) : (
+          ) : activeTab === "ledgers" ? (
             <DataTable
               columns={ledgerColumns}
               data={filteredCustomLedgers}
@@ -1294,6 +1309,13 @@ const VoucherList = () => {
                   No custom ledgers found. Click "Create Custom Ledger" to start.
                 </div>
               }
+            />
+          ) : (
+            <CustomLedgerReportTab
+              vouchers={vouchers}
+              customLedgers={customLedgers}
+              loading={loading}
+              themes={themes}
             />
           )}
         </div>
@@ -1501,6 +1523,12 @@ const VoucherList = () => {
                 />
               </div>
             )}
+            <ReceiverBankFields
+              paymentMode={approvePaymentMode}
+              value={approveReceiverBank}
+              onChange={setApproveReceiverBank}
+              size="sm"
+            />
           </div>
 
           <div className="flex flex-col gap-1">
@@ -1679,6 +1707,13 @@ const VoucherList = () => {
               onChange={(e) => setPaymentReferenceNo(e.target.value)}
             />
           )}
+
+          <ReceiverBankFields
+            paymentMode={paymentMode}
+            value={paymentReceiverBank}
+            onChange={setPaymentReceiverBank}
+            size="sm"
+          />
 
           <Input
             label="Payment Remarks / Notes"

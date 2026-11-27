@@ -18,6 +18,8 @@ export const AllPermissionNames = [
     "salary",
     "advance",
     "voucher",
+    "employee_pay",
+    "seller_pay",
 
     // 2. Financial Accounts & Ledgers (All Ledgers Grouped Together)
     "ledger",
@@ -74,6 +76,8 @@ export const MODULE_DISPLAY_NAMES = {
     salary: "Salary & Payroll Processing",
     advance: "Employee Advance Management",
     voucher: "Payment Vouchers & Expenses",
+    employee_pay: "Direct Employee Pay (Account)",
+    seller_pay: "Direct Seller Pay (Account)",
 
     // Financial Accounts & Ledgers (All Ledgers Grouped Together)
     ledger: "Master All Ledgers & Custom Ledgers (Create / Edit Accounts)",
@@ -145,7 +149,9 @@ export const MODULE_CATEGORIES = [
             "branch_ledger",
             "commission_ledger_action",
             "advance",
-            "voucher"
+            "voucher",
+            "employee_pay",
+            "seller_pay"
         ]
     },
     {
@@ -200,6 +206,8 @@ export const adminPermission = {
     salary: [1, 2, 3, 4],
     advance: [1, 2, 3, 4],
     voucher: [1, 2, 3, 4],
+    employee_pay: [1, 2, 3, 4],
+    seller_pay: [1, 2, 3, 4],
     bank_ledger: [1, 2, 3, 4],
     cash_ledger: [1, 2, 3, 4],
     fund_transfer: [1, 2, 3, 4],
@@ -242,6 +250,8 @@ export const managerPermission = {
     salary: [1],
     advance: [1, 2, 3],
     voucher: [1, 2, 3],
+    employee_pay: [1, 2],
+    seller_pay: [1, 2],
     cash_ledger: [1],
     fund_transfer: [1, 2],
     bank_ledger: [],
@@ -284,6 +294,8 @@ export const accountantPermission = {
     salary: [1, 2, 3],
     advance: [1, 2, 3, 4],
     voucher: [1, 2, 3, 4],
+    employee_pay: [1, 2, 3, 4],
+    seller_pay: [1, 2, 3, 4],
     cash_ledger: [1],
     bank_ledger: [1],
     fund_transfer: [1, 2],

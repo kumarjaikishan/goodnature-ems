@@ -1198,7 +1198,6 @@ const deleteBranch = async (req, res, next) => {
             { modelName: 'PlotClosing', label: 'incentive closing(s)' },
             { modelName: 'PlotSponsorCommission', label: 'sponsor commission(s)' },
             { modelName: 'Voucher', label: 'voucher(s)' },
-            { modelName: 'Ledger', label: 'ledger account(s)' },
             { modelName: 'FundTransfer', label: 'fund transfer(s)' },
             { modelName: 'Advance', label: 'advance record(s)' },
             { modelName: 'Payroll', label: 'payroll record(s)' },
@@ -1217,6 +1216,31 @@ const deleteBranch = async (req, res, next) => {
             })
         );
 
+        // Check ledgers: block on any non-branch ledger, or any branch-entity ledger with balance/entries
+        const LedgerModel = mongoose.models.Ledger || null;
+        const EntryModel = mongoose.models.Entry || null;
+        const emptyBranchLedgerIds = [];
+        if (LedgerModel) {
+            const branchLedgers = await LedgerModel.find({ branchId }).select('_id ledgerType openingBalance').lean();
+            let blockingLedgerCount = 0;
+            for (const l of branchLedgers) {
+                if (l.ledgerType !== 'branch') {
+                    blockingLedgerCount++;
+                    continue;
+                }
+                const hasBalance = Number(l.openingBalance || 0) !== 0;
+                const entryCount = EntryModel ? await EntryModel.countDocuments({ ledgerId: l._id }) : 0;
+                if (hasBalance || entryCount > 0) {
+                    blockingLedgerCount++;
+                } else {
+                    emptyBranchLedgerIds.push(l._id);
+                }
+            }
+            if (blockingLedgerCount > 0) {
+                counts.push(`${blockingLedgerCount} ledger account(s)`);
+            }
+        }
+
         const blockers = counts.filter(Boolean);
         if (assignedManagers > 0 || hasBranchPartners) {
             blockers.push(`${assignedManagers || 1} assigned manager/partner(s)`);
@@ -1228,8 +1252,11 @@ const deleteBranch = async (req, res, next) => {
             });
         }
 
-        // Delete the branch
+        // Delete the branch and any empty branch-entity ledger created for it
         await branch.findByIdAndDelete(branchId);
+        if (LedgerModel && emptyBranchLedgerIds.length > 0) {
+            await LedgerModel.deleteMany({ _id: { $in: emptyBranchLedgerIds } });
+        }
 
         return res.status(200).json({ message: `Branch "${existingBranch.name}" deleted successfully` });
 

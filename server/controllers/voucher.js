@@ -103,9 +103,17 @@ exports.getVouchers = async (req, res, next) => {
     let voucherQuery = Voucher.find(query)
       .sort({ voucherNo: -1, createdAt: -1 })
       .populate('employeeId')
-      .populate('ledgerId', 'name ledgerType profileImage')
+      .populate({
+        path: 'ledgerId',
+        select: 'name ledgerType profileImage employeeId kisanSellerId sponsorId',
+        populate: [
+          { path: 'employeeId', select: 'employeeName acHolderName bankName bankbranch acnumber ifscCode upi' },
+          { path: 'kisanSellerId', select: 'name bankDetails' },
+          { path: 'sponsorId', select: 'name accountHolderName bankName bankBranch accountNumber ifscCode' }
+        ]
+      })
       .populate('paymentLedgerId', 'name bankName accountNumber ledgerType')
-      .populate('sponsorId', 'name sponsorCode customerId email mobile')
+      .populate('sponsorId', 'name sponsorCode customerId email mobile accountHolderName bankName bankBranch accountNumber ifscCode')
       .populate('approvedBy', 'name email role')
       .populate('createdBy', 'name email role')
       .populate('paymentTranches.paidBy', 'name email')
@@ -134,9 +142,16 @@ exports.getVoucherDetails = async (req, res, next) => {
   try {
     const voucher = await Voucher.findById(req.params.id)
       .populate('employeeId')
-      .populate('ledgerId')
+      .populate({
+        path: 'ledgerId',
+        populate: [
+          { path: 'employeeId', select: 'employeeName acHolderName bankName bankbranch acnumber ifscCode upi' },
+          { path: 'kisanSellerId', select: 'name bankDetails' },
+          { path: 'sponsorId', select: 'name accountHolderName bankName bankBranch accountNumber ifscCode' }
+        ]
+      })
       .populate('paymentLedgerId', 'name bankName accountNumber ledgerType')
-      .populate('sponsorId', 'name sponsorCode customerId email mobile')
+      .populate('sponsorId', 'name sponsorCode customerId email mobile accountHolderName bankName bankBranch accountNumber ifscCode')
       .populate('approvedBy', 'name email role')
       .populate('rejectedBy', 'name email role')
       .populate('createdBy', 'name email role')
@@ -169,11 +184,25 @@ exports.getVoucherDetails = async (req, res, next) => {
   }
 };
 
+const sanitizeReceiverBankDetails = (raw) => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const cleaned = {
+    accountHolderName: String(raw.accountHolderName || '').trim(),
+    bankName: String(raw.bankName || '').trim(),
+    accountNumber: String(raw.accountNumber || '').trim(),
+    ifscCode: String(raw.ifscCode || '').trim().toUpperCase(),
+    branchName: String(raw.branchName || '').trim(),
+    upiId: String(raw.upiId || '').trim(),
+  };
+  const hasAny = Object.values(cleaned).some(Boolean);
+  return hasAny ? cleaned : undefined;
+};
+
 exports.createVoucher = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    let { ledgerId, newLedgerName, date, amount, narration, autoApprove = false, initialPayment = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '' } = req.body;
+    let { ledgerId, newLedgerName, date, amount, narration, autoApprove = false, initialPayment = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '', receiverBankDetails = null } = req.body;
     const amountNum = Number(amount) || 0;
     if (amountNum <= 0) {
       return res.status(400).json({ message: "Amount must be greater than 0" });
@@ -207,10 +236,23 @@ exports.createVoucher = async (req, res, next) => {
       return res.status(404).json({ message: "Ledger not found" });
     }
 
-    // Resolve treasury source ledger (Cash / Bank account to disburse from)
-    let resolvedPaymentLedger = null;
     const userRole = req.user?.role;
     const isGlobalAdmin = ['superadmin', 'developer', 'admin', 'grant'].includes(userRole);
+
+    if (autoApprove && !isGlobalAdmin) {
+      const rawPerms = req.user?.permissions instanceof Map
+        ? Object.fromEntries(req.user.permissions)
+        : (req.user?.permissions || {});
+      const hasVoucherApprove = Array.isArray(rawPerms.voucher) && rawPerms.voucher.includes(3);
+      const hasEmpPay = targetLedger.ledgerType === 'employee' && Array.isArray(rawPerms.employee_pay) && rawPerms.employee_pay.includes(2);
+      const hasSellerPay = targetLedger.ledgerType === 'kisan' && Array.isArray(rawPerms.seller_pay) && rawPerms.seller_pay.includes(2);
+      if (!hasVoucherApprove && !hasEmpPay && !hasSellerPay) {
+        return res.status(403).json({ message: "Permission denied: You are not authorized for direct payment / auto-approval." });
+      }
+    }
+
+    // Resolve treasury source ledger (Cash / Bank account to disburse from)
+    let resolvedPaymentLedger = null;
 
     if (paymentLedgerId) {
       resolvedPaymentLedger = await Ledger.findById(paymentLedgerId).session(session);
@@ -257,6 +299,8 @@ exports.createVoucher = async (req, res, next) => {
     const initPaidNum = autoApprove ? reqInitialPayment : 0;
     const remainingNum = amountNum - initPaidNum;
 
+    const cleanedReceiverBank = paymentMode !== 'CASH' ? sanitizeReceiverBankDetails(receiverBankDetails) : undefined;
+
     let tranches = [];
     if (initPaidNum > 0 && initialStatus !== 'PENDING') {
       tranches.push({
@@ -265,6 +309,7 @@ exports.createVoucher = async (req, res, next) => {
         paymentMode,
         paymentLedgerId: resolvedPaymentLedger?._id || null,
         referenceNo,
+        ...(cleanedReceiverBank ? { receiverBankDetails: cleanedReceiverBank } : {}),
         remarks: 'Initial disbursement on creation',
         paidBy: req.userid
       });
@@ -294,6 +339,7 @@ exports.createVoucher = async (req, res, next) => {
       approvedBy: autoApprove ? req.userid : null,
       approvedAt: autoApprove ? new Date() : null,
       paymentTranches: tranches,
+      ...(cleanedReceiverBank ? { receiverBankDetails: cleanedReceiverBank } : {}),
       entries: [
         {
           accountName: targetLedger.name,
@@ -366,7 +412,7 @@ exports.approveVoucher = async (req, res, next) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { approvedAmount, date, narration, ledgerId, disbursementAmount = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '' } = req.body;
+    const { approvedAmount, date, narration, ledgerId, disbursementAmount = 0, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '', receiverBankDetails = null } = req.body;
 
     const voucher = await Voucher.findById(id).session(session);
     if (!voucher) {
@@ -457,6 +503,8 @@ exports.approveVoucher = async (req, res, next) => {
       newStatus = 'PARTIALLY_PAID';
     }
 
+    const cleanedReceiverBank = paymentMode !== 'CASH' ? sanitizeReceiverBankDetails(receiverBankDetails) : undefined;
+
     // Add disbursement tranche if additional payment amount > 0
     if (additionalDisburse > 0) {
       voucher.paymentTranches.push({
@@ -465,9 +513,13 @@ exports.approveVoucher = async (req, res, next) => {
         paymentMode: paymentMode || 'CASH',
         paymentLedgerId: resolvedPaymentLedger?._id || null,
         referenceNo: referenceNo || '',
+        ...(cleanedReceiverBank ? { receiverBankDetails: cleanedReceiverBank } : {}),
         remarks: `Disbursement approved by ${req.user?.name || 'Admin'}`,
         paidBy: req.userid
       });
+    }
+    if (cleanedReceiverBank) {
+      voucher.receiverBankDetails = cleanedReceiverBank;
     }
 
     const sourceAccountName = resolvedPaymentLedger ? resolvedPaymentLedger.name : (paymentMode === 'CASH' ? 'Cash Account' : 'Bank Account');
@@ -622,7 +674,7 @@ exports.recordVoucherPayment = async (req, res, next) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { amount, paymentDate, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '', remarks = '' } = req.body;
+    const { amount, paymentDate, paymentMode = 'CASH', paymentLedgerId = null, referenceNo = '', remarks = '', receiverBankDetails = null } = req.body;
     const payNum = Number(amount) || 0;
 
     if (payNum <= 0) {
@@ -697,15 +749,21 @@ exports.recordVoucherPayment = async (req, res, next) => {
     const updatedRemaining = total - updatedPaid;
     const newStatus = updatedPaid >= total ? 'PAID' : 'PARTIALLY_PAID';
 
+    const cleanedReceiverBank = paymentMode !== 'CASH' ? sanitizeReceiverBankDetails(receiverBankDetails) : undefined;
+
     voucher.paymentTranches.push({
       amount: payNum,
       paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
       paymentMode,
       paymentLedgerId: resolvedPaymentLedger?._id || null,
       referenceNo,
+      ...(cleanedReceiverBank ? { receiverBankDetails: cleanedReceiverBank } : {}),
       remarks,
       paidBy: req.userid
     });
+    if (cleanedReceiverBank) {
+      voucher.receiverBankDetails = cleanedReceiverBank;
+    }
 
     voucher.paidAmount = updatedPaid;
     voucher.remainingAmount = updatedRemaining;

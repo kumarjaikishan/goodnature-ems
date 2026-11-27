@@ -186,18 +186,21 @@ router.route('/permission/:id')
 
 
 router.route("/ledgerEntries").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), ledger.ledgerEntries);
-router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'grant'), (req, res, next) => {
+router.route("/ledger").get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier', 'grant'), (req, res, next) => {
   // If user is superadmin/developer/grant, proceed immediately
   if (['superadmin', 'grant', 'developer'].includes(req.user?.role)) {
     return next();
   }
-  // Allow if user has either 'ledger' permission or 'voucher' permission (for voucher creation/selection in vouchers view)
+  // Allow if user has 'ledger', 'voucher', 'employee_pay', or 'seller_pay' permission
   const perms = req.user?.permissions instanceof Map
     ? Object.fromEntries(req.user.permissions)
     : (req.user?.permissions || {});
 
   const hasVoucherPerm = (Array.isArray(perms.voucher) && (perms.voucher.includes(1) || perms.voucher.includes(2)));
-  if (hasVoucherPerm) return next();
+  const hasDirectPayPerm =
+    (Array.isArray(perms.employee_pay) && (perms.employee_pay.includes(1) || perms.employee_pay.includes(2))) ||
+    (Array.isArray(perms.seller_pay) && (perms.seller_pay.includes(1) || perms.seller_pay.includes(2)));
+  if (hasVoucherPerm || hasDirectPayPerm) return next();
   return checkPermission("ledger", 1)(req, res, next);
 }, ledger.ledger);
 router.route("/entries/:id").get(authmiddlewre, async (req, res, next) => {
@@ -285,7 +288,7 @@ router.route('/ledger/transfers/:id/cancel')
 // Voucher Routes
 router.route('/vouchers')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier', 'demo'), checkPermission("voucher", 1), voucher.getVouchers)
-  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission("voucher", 2), voucher.createVoucher);
+  .post(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission(["voucher", "employee_pay", "seller_pay"], 2), voucher.createVoucher);
 router.route('/vouchers/:id')
   .get(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier', 'demo'), checkPermission("voucher", 1), voucher.getVoucherDetails)
   .put(authmiddlewre, authorizeRoles('superadmin', 'admin', 'manager', 'accountant', 'cashier'), checkPermission("voucher", 3), voucher.editVoucher)
