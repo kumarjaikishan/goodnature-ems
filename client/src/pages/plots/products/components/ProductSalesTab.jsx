@@ -458,6 +458,37 @@ const ProductSalesTab = ({
                 })
               )}
             </tbody>
+            {filteredBookings.length > 0 && (() => {
+              const totalValuation = filteredBookings.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+              const totalPaid = filteredBookings.reduce((sum, b) => sum + Number(b.totalPaid || 0), 0);
+              const totalDue = filteredBookings.reduce(
+                (sum, b) => sum + Math.max(0, Number(b.totalAmount || 0) - Number(b.totalPaid || 0)),
+                0
+              );
+
+              return (
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200 text-xs">
+                  <tr>
+                    <td colSpan={2} className="p-3 font-extrabold text-slate-700 uppercase tracking-wider">
+                      TOTAL
+                    </td>
+                    <td className="p-3" />
+                    <td className="p-3 text-right font-black text-slate-900 font-mono">
+                      ₹{totalValuation.toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-3 text-right font-mono">
+                      <div className="font-bold text-emerald-700">
+                        ₹{totalPaid.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[11px] text-rose-600 font-semibold">
+                        Due: ₹{totalDue.toLocaleString('en-IN')}
+                      </div>
+                    </td>
+                    <td colSpan={2} className="p-3" />
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
       </div>

@@ -117,10 +117,10 @@ const GenerateAgreementModal = ({
   if (!booking) return null;
 
   const customerName = booking.customerId?.name || booking.customerName || 'N/A';
-  const customerMobile = booking.customerId?.mobile || booking.customerMobile || '';
+  const customerCode = booking.customerId?.customerId || booking.customerId?.customerCode || booking.customerCode || '';
   const itemLabel = bookingType === 'PRODUCT'
     ? (booking.productId?.productName || booking.planName || 'Investment Product')
-    : `Plot #${booking.plotId?.plotNumber || 'N/A'}`;
+    : (booking.plotId?.plotNumber || 'N/A');
 
   return (
     <Modalbox
@@ -144,7 +144,7 @@ const GenerateAgreementModal = ({
           <div className="flex items-center justify-between">
             <span className="text-slate-500 font-medium">Customer:</span>
             <span className="font-semibold text-slate-800">
-              {customerName} {customerMobile && <span className="text-slate-400 font-normal">({customerMobile})</span>}
+              {customerName} {customerCode && <span className="text-slate-400 font-normal font-mono">({customerCode})</span>}
             </span>
           </div>
 

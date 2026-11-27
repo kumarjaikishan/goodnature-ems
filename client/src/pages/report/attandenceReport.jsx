@@ -178,17 +178,6 @@ const AttendanceReport = () => {
 
             {/* Attendance Matrix Register */}
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5">
-                <div className="flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-slate-100 gap-2">
-                    <div>
-                        <h3 className="text-base font-bold text-slate-800 tracking-tight">
-                            Monthly Attendance Register
-                        </h3>
-                        <p className="text-xs text-slate-500 font-medium">
-                            Period: {dayjs(`${filters.year}-${filters.month}-01`).format("MMMM YYYY")}
-                        </p>
-                    </div>
-                </div>
-
                 <RegisterView
                     csvcall={csvcall}
                     filters={filters}

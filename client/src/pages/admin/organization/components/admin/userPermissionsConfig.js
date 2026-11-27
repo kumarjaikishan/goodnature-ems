@@ -76,8 +76,8 @@ export const MODULE_DISPLAY_NAMES = {
     salary: "Salary & Payroll Processing",
     advance: "Employee Advance Management",
     voucher: "Payment Vouchers & Expenses",
-    employee_pay: "Direct Employee Pay (Account)",
-    seller_pay: "Direct Seller Pay (Account)",
+    employee_pay: "Employee Pay (Account)",
+    seller_pay: "Seller Pay (Account)",
 
     // Financial Accounts & Ledgers (All Ledgers Grouped Together)
     ledger: "Master All Ledgers & Custom Ledgers (Create / Edit Accounts)",

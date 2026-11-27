@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -16,6 +16,7 @@ import { confirmDialog } from '../../../../utils/confirmDialog';
 import api from '../../../../api/axios';
 import { toast } from '../../../../utils/toast';
 import usePermission from '../../../../utils/CheckPermission';
+import TablePagination from '../../../../components/common/TablePagination';
 
 const KisanSellersTable = ({
   sellers = [],
@@ -23,6 +24,17 @@ const KisanSellersTable = ({
   fetchSellers,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -119,8 +131,8 @@ const KisanSellersTable = ({
   };
 
   const filtered = sellers.filter((s) => {
-    if (!searchTerm.trim()) return true;
-    const term = searchTerm.toLowerCase();
+    if (!debouncedSearch.trim()) return true;
+    const term = debouncedSearch.toLowerCase();
     return (
       (s.name || '').toLowerCase().includes(term) ||
       (s.mobile || '').toLowerCase().includes(term) ||
@@ -130,6 +142,11 @@ const KisanSellersTable = ({
       (s.address || '').toLowerCase().includes(term)
     );
   });
+
+  const paginatedSellers = filtered.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   return (
     <div className="space-y-4">
@@ -142,7 +159,10 @@ const KisanSellersTable = ({
             placeholder="Search Land Seller by Name, Mobile, Aadhaar, PAN..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-600 font-medium"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
@@ -208,10 +228,10 @@ const KisanSellersTable = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((seller, idx) => (
+                {paginatedSellers.map((seller, idx) => (
                   <tr key={seller._id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="p-3.5 pl-5 font-mono text-slate-400 text-[11px]">
-                      {idx + 1}
+                      {(currentPage - 1) * rowsPerPage + idx + 1}
                     </td>
                     <td className="p-3.5">
                       <div className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -305,6 +325,15 @@ const KisanSellersTable = ({
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && filtered.length > 0 && (
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+          />
         )}
       </div>
 

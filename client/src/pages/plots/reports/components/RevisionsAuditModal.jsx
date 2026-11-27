@@ -30,8 +30,7 @@ const RevisionsAuditModal = ({
         </Button>
       }
     >
-      <div className="w-full space-y-4 max-h-[70vh] flex flex-col">
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+      <div className="w-full space-y-3 text-xs">
           {loading ? (
             <div className="py-12 text-center text-slate-400">Loading revision audits...</div>
           ) : revisionsData.length === 0 ? (
@@ -300,7 +299,6 @@ const RevisionsAuditModal = ({
               </div>
             ))
           )}
-        </div>
       </div>
     </Modalbox>
   );

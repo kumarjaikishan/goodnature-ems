@@ -247,15 +247,27 @@ const updateemployee = async (req, res, next) => {
             }
         }
 
-        await employeeService.updateEmployee(employeeId, req.body, uploadResult, session);
+        const { previousProfileImage } = await employeeService.updateEmployee(employeeId, req.body, uploadResult, session);
 
         await session.commitTransaction();
         session.endSession();
+
+        if (previousProfileImage) {
+            try {
+                await removePhotoBySecureUrl([previousProfileImage]);
+            } catch (cleanupErr) {
+                console.error("Cloudinary cleanup error:", cleanupErr.message);
+            }
+        }
+
         return res.status(200).json({ message: "Employee updated successfully." });
 
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        if (uploadResult?.secure_url) {
+            removePhotoBySecureUrl([uploadResult.secure_url]).catch(() => {});
+        }
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlink(req.file.path, () => {});
         }

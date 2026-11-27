@@ -215,7 +215,7 @@ export const addemployee = async ({ formData, dispatch, setisload, setInp, setop
 };
 
 
-export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, setisload, setInp, setopenmodal, init }) => {
+export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, setisload, setInp, setopenmodal, init, resetPhoto }) => {
     setisload(true);
 
     try {
@@ -226,7 +226,8 @@ export const employeeupdate = async ({ formData, dispatch, setEmployeePhoto, set
         });
 
         toast.success(data.message, { autoClose: 1200 });
-        setEmployeePhoto(null)
+        if (resetPhoto) resetPhoto();
+        else setEmployeePhoto(null);
         setInp(init);
         setopenmodal(false);
         const updatedList = await apiClient({ url: "getemployee" });

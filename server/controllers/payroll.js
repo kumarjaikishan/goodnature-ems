@@ -148,7 +148,7 @@ exports.createPayroll = async (req, res, next) => {
 
     // 🔹 Handle advance adjustment
     if (options.adjustAdvance && options.adjustedAdvance > 0) {
-      const amountToAdjust = options.adjustedAdvance;
+      const amountToAdjust = Number(options.adjustedAdvance) || 0;
 
       // Fetch open advances (FIFO)
       const openAdvances = await Advance.find({
@@ -156,6 +156,11 @@ exports.createPayroll = async (req, res, next) => {
         remainingBalance: { $gt: 0 },
         type: "given"
       }).sort({ date: 1, createdAt: 1 }).session(session);
+
+      const totalOpenRemaining = openAdvances.reduce((sum, a) => sum + (Number(a.remainingBalance) || 0), 0);
+      if (amountToAdjust > totalOpenRemaining) {
+        throw new Error(`Advance deduction (₹${amountToAdjust}) exceeds employee's remaining advance balance (₹${totalOpenRemaining}).`);
+      }
 
       let remainingToAdjust = amountToAdjust;
 
@@ -436,6 +441,11 @@ exports.editPayroll = async (req, res, next) => {
           type: "given"
         }).sort({ date: 1, createdAt: 1 }).session(session);
 
+        const totalOpenRemaining = openAdvances.reduce((sum, a) => sum + (Number(a.remainingBalance) || 0), 0);
+        if (difference > totalOpenRemaining) {
+          throw new Error(`Additional advance deduction (₹${difference}) exceeds remaining advance balance (₹${totalOpenRemaining}).`);
+        }
+
         let remainingToAdjust = difference;
         for (const adv of openAdvances) {
           if (remainingToAdjust <= 0) break;
@@ -466,7 +476,7 @@ exports.editPayroll = async (req, res, next) => {
             type: "adjusted",
             amount: newAdjustment,
             remarks: `Deducted in Payroll ${getMonthName(payroll.month)}-${payroll.year} (Edited)`,
-            date: new Date(),
+            date: postingDate,
             payrollId: payroll._id,
             status: "closed"
           });

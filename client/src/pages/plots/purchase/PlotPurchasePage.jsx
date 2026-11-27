@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2, Plus, FileText, ShieldCheck, Users } from 'lucide-react';
+import { Plus, FileText, ShieldCheck } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../utils/toast';
 import confirmDialog from '../../../utils/confirmDialog';
@@ -9,8 +9,7 @@ import PageLoader from '../../../components/common/PageLoader';
 import KisanSummaryMetrics from './components/KisanSummaryMetrics';
 import KisanAgreementsTable from './components/KisanAgreementsTable';
 import RegistryDeedsTable from './components/RegistryDeedsTable';
-import KisanSellersTable from './components/KisanSellersTable';
-// Purchasers and Projects have been moved to dedicated pages
+// Sellers, Purchasers and Projects have been moved to dedicated pages
 import CreateAgreementModal from './components/CreateAgreementModal';
 import EditAgreementModal from './components/EditAgreementModal';
 import CreateDeedModal from './components/CreateDeedModal';
@@ -26,13 +25,15 @@ const PlotPurchasePage = () => {
   const [agreements, setAgreements] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [projectFilter, setProjectFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Top Main Navigation Tab: 'agreements' | 'deeds' | 'sellers' (synced with URL ?tab=...)
+  // Top Main Navigation Tab: 'agreements' | 'deeds' (synced with URL ?tab=...)
   const TAB_ALIASES = {
     agreements: 'agreements',
     agreement: 'agreements',
@@ -40,10 +41,6 @@ const PlotPurchasePage = () => {
     deed: 'deeds',
     registry: 'deeds',
     registry_deeds: 'deeds',
-    sellers: 'sellers',
-    seller: 'sellers',
-    land_sellers: 'sellers',
-    kisan_sellers: 'sellers',
   };
   const tabParam = searchParams.get('tab')?.toLowerCase();
   const initialTab = TAB_ALIASES[tabParam] || 'agreements';
@@ -72,9 +69,8 @@ const PlotPurchasePage = () => {
   };
   const [deedSearch, setDeedSearch] = useState('');
 
-  // Kisan / Sellers Master State
+  // Kisan / Sellers Master State (used in Create/Edit Agreement dropdowns)
   const [sellers, setSellers] = useState([]);
-  const [sellersLoading, setSellersLoading] = useState(false);
 
   // Purchasers / Buyers Master State
   const [purchasers, setPurchasers] = useState([]);
@@ -199,11 +195,11 @@ const PlotPurchasePage = () => {
     try {
       const res = await api.get('/plots/kisan-agreements', {
         params: {
-          search,
+          search: debouncedSearch,
           status: statusFilter !== 'ALL' ? statusFilter : undefined,
           projectId: projectFilter !== 'ALL' ? projectFilter : undefined,
           page,
-          limit: 50,
+          limit,
         },
       });
       const dataList = res.data?.data?.agreements || res.data?.data?.customers || res.data?.data || res.data?.agreements || [];
@@ -218,15 +214,12 @@ const PlotPurchasePage = () => {
 
   // Fetch Kisan / Sellers directory
   const fetchSellers = async () => {
-    setSellersLoading(true);
     try {
       const res = await api.get('/plots/kisan-sellers');
       const list = res.data?.data || res.data || [];
       setSellers(Array.isArray(list) ? list : []);
     } catch {
       // silent or toast
-    } finally {
-      setSellersLoading(false);
     }
   };
 
@@ -259,8 +252,16 @@ const PlotPurchasePage = () => {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     fetchAgreements();
-  }, [page, statusFilter, projectFilter]);
+  }, [page, limit, debouncedSearch, statusFilter, projectFilter]);
 
   useEffect(() => {
     fetchSellers();
@@ -613,33 +614,7 @@ const PlotPurchasePage = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6 max-w-7xl mx-auto">
-      {/* ── HEADER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
-              <Building2 size={22} />
-            </span>
-            Plot Purchase & Land Master
-          </h1>
-          <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Manage land & plot purchase agreements, farmer particulars, registry deeds, payment ledgers, and stock allocations.
-          </p>
-        </div>
-
-        {canCreatePurchase && (
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs md:text-sm rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5"
-            >
-              <Plus size={16} /> New Plot Purchase
-            </button>
-          </div>
-        )}
-      </div>
-
+    <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-5 max-w-7xl mx-auto">
       {/* ── METRIC SUMMARY CARDS ── */}
       <KisanSummaryMetrics
         total={total}
@@ -648,161 +623,156 @@ const PlotPurchasePage = () => {
       />
 
       {/* ── TOP-LEVEL MAIN TABS ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
-        <button
-          onClick={() => handleMainTabChange('agreements')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'agreements'
-              ? 'border-teal-700 text-teal-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-        >
-          <FileText size={16} />
-          Plot Purchase Agreements ({agreements.length})
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleMainTabChange('agreements')}
+            className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'agreements'
+                ? 'border-teal-700 text-teal-800'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+          >
+            <FileText size={16} />
+            Plot Purchase Agreements
+          </button>
 
-        <button
-          onClick={() => handleMainTabChange('deeds')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'deeds'
-              ? 'border-purple-700 text-purple-900'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-        >
-          <ShieldCheck size={16} />
-          Registry Deeds ({allRegistryDeeds.length})
-        </button>
+          <button
+            onClick={() => handleMainTabChange('deeds')}
+            className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'deeds'
+                ? 'border-purple-700 text-purple-900'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+          >
+            <ShieldCheck size={16} />
+            Registry Deeds
+          </button>
+        </div>
 
-        <button
-          onClick={() => handleMainTabChange('sellers')}
-          className={`pb-3 px-3.5 font-bold text-xs md:text-sm flex items-center gap-2 border-b-2 transition cursor-pointer ${mainTab === 'sellers'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-        >
-          <Users size={16} />
-          Land Sellers Directory ({sellers.length})
-        </button>
-      </div>
+        {mainTab === 'agreements' && canCreatePurchase && (
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="mb-2 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-xs transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus size={15} /> New Plot Purchase
+            </button>
+          )}
+        </div>
 
-      {/* ── TAB 1: PLOT PURCHASE AGREEMENTS ── */}
-      {mainTab === 'agreements' && (
-        <KisanAgreementsTable
-          agreements={agreements}
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          projects={projects}
-          projectFilter={projectFilter}
-          setProjectFilter={setProjectFilter}
-          setPage={setPage}
+        {/* ── TAB 1: PLOT PURCHASE AGREEMENTS ── */}
+        {mainTab === 'agreements' && (
+          <KisanAgreementsTable
+            agreements={agreements}
+            search={search}
+            setSearch={setSearch}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            projects={projects}
+            projectFilter={projectFilter}
+            setProjectFilter={setProjectFilter}
+            page={page}
+            setPage={setPage}
+            limit={limit}
+            setLimit={setLimit}
+            total={total}
+            fetchAgreements={fetchAgreements}
+            openCreateDeedModal={openCreateDeedModal}
+            openPaymentModal={openPaymentModal}
+            loadAgreementDetails={loadAgreementDetails}
+            openEditAgreement={openEditAgreement}
+            handleDeleteAgreement={handleDeleteAgreement}
+          />
+        )}
+
+        {/* ── TAB 2: REGISTRY DEEDS MASTER / LEDGER ── */}
+        {mainTab === 'deeds' && (
+          <RegistryDeedsTable
+            filteredDeeds={filteredDeeds}
+            allRegistryDeeds={allRegistryDeeds}
+            deedSearch={deedSearch}
+            setDeedSearch={setDeedSearch}
+            loadAgreementDetails={loadAgreementDetails}
+            onViewDeed={(deed) => setViewDeedTarget(deed)}
+            openEditDeedModal={openEditDeedModal}
+            handleDeleteDeed={handleDeleteDeed}
+          />
+        )}
+
+        {/* ── MODALS ── */}
+        <CreateAgreementModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          createForm={createForm}
+          setCreateForm={setCreateForm}
+          createLoading={createLoading}
+          setCreateLoading={setCreateLoading}
           fetchAgreements={fetchAgreements}
-          openCreateDeedModal={openCreateDeedModal}
-          openPaymentModal={openPaymentModal}
-          loadAgreementDetails={loadAgreementDetails}
-          openEditAgreement={openEditAgreement}
-          handleDeleteAgreement={handleDeleteAgreement}
-        />
-      )}
-
-      {/* ── TAB 2: REGISTRY DEEDS MASTER / LEDGER ── */}
-      {mainTab === 'deeds' && (
-        <RegistryDeedsTable
-          filteredDeeds={filteredDeeds}
-          allRegistryDeeds={allRegistryDeeds}
-          deedSearch={deedSearch}
-          setDeedSearch={setDeedSearch}
-          loadAgreementDetails={loadAgreementDetails}
-          onViewDeed={(deed) => setViewDeedTarget(deed)}
-          openEditDeedModal={openEditDeedModal}
-          handleDeleteDeed={handleDeleteDeed}
-        />
-      )}
-
-      {/* ── TAB 3: KISAN / SELLERS DIRECTORY MASTER ── */}
-      {mainTab === 'sellers' && (
-        <KisanSellersTable
           sellers={sellers}
-          loading={sellersLoading}
+          purchasers={purchasers}
+          projects={projects}
           fetchSellers={fetchSellers}
+          fetchPurchasers={fetchPurchasers}
+          fetchProjects={fetchProjects}
         />
-      )}
 
-      {/* ── MODALS ── */}
-      <CreateAgreementModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        createForm={createForm}
-        setCreateForm={setCreateForm}
-        createLoading={createLoading}
-        setCreateLoading={setCreateLoading}
-        fetchAgreements={fetchAgreements}
-        sellers={sellers}
-        purchasers={purchasers}
-        projects={projects}
-        fetchSellers={fetchSellers}
-        fetchPurchasers={fetchPurchasers}
-        fetchProjects={fetchProjects}
-      />
+        <EditAgreementModal
+          open={editAgrOpen}
+          onClose={() => setEditAgrOpen(false)}
+          editAgrTarget={editAgrTarget}
+          editAgrForm={editAgrForm}
+          setEditAgrForm={setEditAgrForm}
+          editAgrLoading={editAgrLoading}
+          handleSaveAgreementEdit={handleSaveAgreementEdit}
+          sellers={sellers}
+          purchasers={purchasers}
+          projects={projects}
+          fetchSellers={fetchSellers}
+          fetchPurchasers={fetchPurchasers}
+          fetchProjects={fetchProjects}
+        />
 
-      <EditAgreementModal
-        open={editAgrOpen}
-        onClose={() => setEditAgrOpen(false)}
-        editAgrTarget={editAgrTarget}
-        editAgrForm={editAgrForm}
-        setEditAgrForm={setEditAgrForm}
-        editAgrLoading={editAgrLoading}
-        handleSaveAgreementEdit={handleSaveAgreementEdit}
-        sellers={sellers}
-        purchasers={purchasers}
-        projects={projects}
-        fetchSellers={fetchSellers}
-        fetchPurchasers={fetchPurchasers}
-        fetchProjects={fetchProjects}
-      />
+        <CreateDeedModal
+          open={deedModalOpen}
+          onClose={() => setDeedModalOpen(false)}
+          targetAgreementForDeed={targetAgreementForDeed}
+          deedForm={deedForm}
+          setDeedForm={setDeedForm}
+          deedLoading={deedLoading}
+          handleSaveRegistryDeed={handleSaveRegistryDeed}
+        />
 
-      <CreateDeedModal
-        open={deedModalOpen}
-        onClose={() => setDeedModalOpen(false)}
-        targetAgreementForDeed={targetAgreementForDeed}
-        deedForm={deedForm}
-        setDeedForm={setDeedForm}
-        deedLoading={deedLoading}
-        handleSaveRegistryDeed={handleSaveRegistryDeed}
-      />
+        <EditDeedModal
+          open={editDeedModalOpen}
+          onClose={() => setEditDeedModalOpen(false)}
+          editingDeedTarget={editingDeedTarget}
+          editDeedForm={editDeedForm}
+          setEditDeedForm={setEditDeedForm}
+          editDeedLoading={editDeedLoading}
+          handleSaveEditDeed={handleSaveEditDeed}
+        />
 
-      <EditDeedModal
-        open={editDeedModalOpen}
-        onClose={() => setEditDeedModalOpen(false)}
-        editingDeedTarget={editingDeedTarget}
-        editDeedForm={editDeedForm}
-        setEditDeedForm={setEditDeedForm}
-        editDeedLoading={editDeedLoading}
-        handleSaveEditDeed={handleSaveEditDeed}
-      />
+        <RecordPaymentModal
+          open={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          targetAgreementForPayment={targetAgreementForPayment}
+          paymentForm={paymentForm}
+          setPaymentForm={setPaymentForm}
+          paymentLoading={paymentLoading}
+          handleSavePayment={handleSavePayment}
+        />
 
-      <RecordPaymentModal
-        open={paymentModalOpen}
-        onClose={() => setPaymentModalOpen(false)}
-        targetAgreementForPayment={targetAgreementForPayment}
-        paymentForm={paymentForm}
-        setPaymentForm={setPaymentForm}
-        paymentLoading={paymentLoading}
-        handleSavePayment={handleSavePayment}
-      />
+        <KisanLedgersDrawer
+          open={Boolean(selectedAgrId && detailData)}
+          onClose={() => setSelectedAgrId(null)}
+          detailData={detailData}
+        />
 
-      <KisanLedgersDrawer
-        open={Boolean(selectedAgrId && detailData)}
-        onClose={() => setSelectedAgrId(null)}
-        detailData={detailData}
-      />
-
-      <ViewDeedModal
-        open={Boolean(viewDeedTarget)}
-        onClose={() => setViewDeedTarget(null)}
-        deed={viewDeedTarget}
-      />
-    </div>
-  );
+        <ViewDeedModal
+          open={Boolean(viewDeedTarget)}
+          onClose={() => setViewDeedTarget(null)}
+          deed={viewDeedTarget}
+        />
+      </div>
+      );
 };
 
-export default PlotPurchasePage;
+      export default PlotPurchasePage;

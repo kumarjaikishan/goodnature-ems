@@ -5,10 +5,11 @@ import Button from "../../../components/ui/Button";
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Search,
-  Plus,
+  UserPlus,
   FileSpreadsheet,
   X,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import Modalbox from '../../../components/custommodal/Modalbox';
 import { swal } from '../../../utils/confirmDialog';
@@ -28,6 +29,7 @@ import { apiClient } from "../../../utils/apiClient";
 const Employe = () => {
   const [openmodal, setopenmodal] = useState(false);
   const [isload, setisload] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [employeelist, setemployeelist] = useState([]);
   const [departmentlist, setdepartmentlist] = useState([]);
   const [openviewmodal, setopenviewmodal] = useState(false);
@@ -37,6 +39,7 @@ const Employe = () => {
   const [isupdate, setisupdate] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [employeePhoto, setEmployeePhoto] = useState(null);
+  const [removeProfileImage, setRemoveProfileImage] = useState(false);
   const [viewEmployee, setviewEmployee] = useState(null);
   const [openSection, setOpenSection] = useState(null);
   const { handleImage } = useImageUpload();
@@ -234,21 +237,42 @@ const Employe = () => {
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    setEmployeePhoto(file);
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setPhotoPreview(null);
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select a valid image file (JPG, PNG, WebP)");
+      if (inputref.current) inputref.current.value = '';
+      return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size must be under 10 MB");
+      if (inputref.current) inputref.current.value = '';
+      return;
+    }
+    setEmployeePhoto(file);
+    setRemoveProfileImage(false);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const resetPhoto = () => {
     setPhotoPreview(null);
     setEmployeePhoto(null);
+    setRemoveProfileImage(false);
+    if (inputref.current) {
+      inputref.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoPreview(null);
+    setEmployeePhoto(null);
+    setRemoveProfileImage(true);
+    if (inputref.current) {
+      inputref.current.value = '';
+    }
   };
 
   const adddepartcall = async (e) => {
@@ -270,7 +294,9 @@ const Employe = () => {
     if (isupdate) {
       const formData = new FormData();
       Object.keys(inp).forEach(key => {
+        if (key === 'profileimage') return;
         const value = inp[key];
+        if (value === null || value === undefined) return;
         if (Array.isArray(value) || typeof value === 'object') {
           formData.append(key, JSON.stringify(value));
         } else {
@@ -281,11 +307,11 @@ const Employe = () => {
       if (employeePhoto) {
         const resizedfile = await handleImage(350, employeePhoto);
         formData.append('photo', resizedfile);
+      } else if (removeProfileImage) {
+        formData.append('removeProfileImage', 'true');
       }
 
       await employeeupdate({ formData, dispatch, setisload, setEmployeePhoto, setInp, setopenmodal, init, resetPhoto });
-      setPhotoPreview(null);
-      setEmployeePhoto(null);
     } else {
       const formData = new FormData();
       Object.keys(inp).forEach(key => {
@@ -300,6 +326,8 @@ const Employe = () => {
       if (employeePhoto) {
         const resizedfile = await handleImage(350, employeePhoto);
         formData.append('photo', resizedfile);
+      } else if (removeProfileImage) {
+        formData.append('removeProfileImage', 'true');
       }
 
       await addemployee({ formData, dispatch, setisload, setInp, setopenmodal, init, resetPhoto });
@@ -418,18 +446,67 @@ const Employe = () => {
   };
 
   const exportCSV = () => {
-    const headers = ["S.No", "Name", "Email", "Department", "Designation", "Status"];
-    const rows = filteredEmployees.map((e, idx) => [
-      idx + 1, e.rawname, e.email, e.department, e.designation, e.status ? "Active" : "Inactive"
-    ]);
-    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Employee_Directory.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (isExporting) return;
+    if (!filteredEmployees || filteredEmployees.length === 0) {
+      toast.error("No employee records to export");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const headers = [
+        "S.No",
+        "Employee ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Branch",
+        "Department",
+        "Designation",
+        "Base Salary",
+        "Status"
+      ];
+
+      const escapeCSV = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = filteredEmployees.map((e, idx) => {
+        const empCode = e.empId ? `EMP${String(e.empId).replace('EMP', '').padStart(3, '0')}` : '—';
+        const branchName = branch?.find(b => String(b._id) === String(e.branch))?.name || e.branch || '—';
+        return [
+          idx + 1,
+          escapeCSV(empCode),
+          escapeCSV(e.rawname),
+          escapeCSV(e.email),
+          escapeCSV(e.phone),
+          escapeCSV(branchName),
+          escapeCSV(e.department),
+          escapeCSV(e.designation),
+          escapeCSV(e.salary || 0),
+          escapeCSV(e.status ? "Active" : "Inactive")
+        ].join(",");
+      });
+
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Employee_Directory_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Employee directory exported successfully!");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Failed to export CSV");
+    } finally {
+      setTimeout(() => setIsExporting(false), 500);
+    }
   };
 
   useEffect(() => {
@@ -509,48 +586,9 @@ const Employe = () => {
     <div className='p-4 md:p-6 max-w-7xl mx-auto space-y-5'>
       
       {/* Controls & Search Filter Toolbar */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-4 md:p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-slate-800 tracking-tight">
-              Employee Directory
-            </h1>
-            {isFiltered && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer ml-2"
-              >
-                <X size={13} /> Reset Filters
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={exportCSV}
-              className="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-white border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            >
-              <FileSpreadsheet size={14} className="text-emerald-600" />
-              Export CSV
-            </button>
-
-            {canCreate && (
-              <button
-                type="button"
-                onClick={() => setopenmodal(true)}
-                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus size={14} /> Add Employee
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter Inputs Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          <div className="sm:col-span-1 lg:col-span-2">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-3.5 md:p-4">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex-1 min-w-[200px]">
             <Input
               size="sm"
               startIcon={Search}
@@ -560,7 +598,7 @@ const Employe = () => {
             />
           </div>
 
-          <div>
+          <div className="w-full sm:w-44">
             <Select
               size="sm"
               value={filters.branch}
@@ -569,7 +607,7 @@ const Employe = () => {
             />
           </div>
 
-          <div>
+          <div className="w-full sm:w-44">
             <Select
               size="sm"
               disabled={filters.branch === "all"}
@@ -583,6 +621,48 @@ const Employe = () => {
                 }))
               ]}
             />
+          </div>
+
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="px-2.5 py-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg font-medium flex items-center gap-1 cursor-pointer transition"
+            >
+              <X size={13} /> Reset
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              disabled={isExporting}
+              onClick={exportCSV}
+              className="px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-white border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <Loader2 size={14} className="text-teal-700 animate-spin" />
+              ) : (
+                <FileSpreadsheet size={14} className="text-emerald-600" />
+              )}
+              {isExporting ? "Exporting..." : "Export CSV"}
+            </button>
+
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setisupdate(false);
+                  setInp(init);
+                  resetPhoto();
+                  setOpenSection(null);
+                  setopenmodal(true);
+                }}
+                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <UserPlus size={15} /> Add Employee
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -623,6 +703,7 @@ const Employe = () => {
         removeItem={removeItem}
         photoPreview={photoPreview}
         handlePhotoChange={handlePhotoChange}
+        handleRemovePhoto={handleRemovePhoto}
         inputref={inputref}
         openSection={openSection}
         toggleSection={toggleSection}

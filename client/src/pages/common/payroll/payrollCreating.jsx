@@ -13,7 +13,13 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Check
+  Check,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Gift,
+  MinusCircle,
+  Calculator
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
@@ -311,7 +317,7 @@ export default function PayrollCreatePage() {
     const empIdStr = targetEmpId.toString();
     const baseAdvance = Number(selectedEmployeedetail?.advance || 0);
 
-    apiClient({ url: `advance/employee/${empIdStr}` })
+    apiClient({ url: `advance/employee/${empIdStr}?month=${month}&year=${year}` })
       .then((res) => {
         if (res.success && res.data) {
           const advData = res.data;
@@ -320,15 +326,15 @@ export default function PayrollCreatePage() {
           const liveBal = advData.totalRemainingBalance !== undefined ? Number(advData.totalRemainingBalance) : baseAdvance;
           setpreviousAdvance(liveBal);
 
-          // Auto-adjust advance with scheduled EMI if active advances exist and not in edit mode
+          // Auto-adjust advance with scheduled EMI if due active advances exist and not in edit mode
           if (!id && liveBal > 0) {
             const suggested = advData.suggestedMonthlyDeduction > 0
               ? Math.min(advData.suggestedMonthlyDeduction, liveBal)
-              : liveBal;
+              : 0;
 
             setOptions((prev) => ({
               ...prev,
-              adjustAdvance: true,
+              adjustAdvance: suggested > 0,
               adjustedAdvance: suggested,
             }));
           }
@@ -340,7 +346,7 @@ export default function PayrollCreatePage() {
         console.error("Failed to fetch employee advance details:", err);
         setpreviousAdvance(baseAdvance);
       });
-  }, [targetEmpId, selectedEmployeedetail?.advance, id]);
+  }, [targetEmpId, selectedEmployeedetail?.advance, id, month, year]);
 
   function formatRupee(amount) {
     const num = Number(amount);
@@ -952,7 +958,7 @@ export default function PayrollCreatePage() {
             {/* COLUMN 1: ADDITIONS / EARNINGS */}
             <div className="space-y-3">
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 pb-1 border-b border-emerald-100">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <TrendingUp size={14} className="text-emerald-600 shrink-0" />
                 <span>Additions (Earnings)</span>
               </div>
 
@@ -1073,7 +1079,7 @@ export default function PayrollCreatePage() {
             {/* COLUMN 2: DEDUCTIONS */}
             <div className="space-y-3">
               <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800 pb-1 border-b border-rose-100">
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                <TrendingDown size={14} className="text-rose-600 shrink-0" />
                 <span>Deductions</span>
               </div>
 
@@ -1246,7 +1252,7 @@ export default function PayrollCreatePage() {
                           adjustAdvance: checked,
                           adjustedAdvance: checked
                             ? (p.adjustedAdvance || defaultAmount)
-                            : (p.adjustedAdvance || 0),
+                            : 0,
                         }));
                       }}
                       className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 mt-0.5 border-slate-300 cursor-pointer"
@@ -1328,18 +1334,23 @@ export default function PayrollCreatePage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Allowances</h3>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Wallet size={15} className="text-teal-700 shrink-0" />
+                  <span>Allowances</span>
+                </h3>
                 <span className="font-bold text-teal-700 text-xs">{formatRupee(totalAllowances)}</span>
               </div>
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.allowances?.map((allowance, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      size="sm"
-                      label="Name"
-                      value={allowance.name}
-                      onChange={(e) => handleArrayChange("allowances", index, "name", e.target.value)}
-                    />
+                  <div key={index} className="flex items-end gap-2">
+                    <div className="flex-1 min-w-0">
+                      <Input
+                        size="sm"
+                        label="Name"
+                        value={allowance.name}
+                        onChange={(e) => handleArrayChange("allowances", index, "name", e.target.value)}
+                      />
+                    </div>
                     <div className="w-28">
                       <NumberInput
                         size="sm"
@@ -1352,7 +1363,7 @@ export default function PayrollCreatePage() {
                     <button
                       type="button"
                       onClick={() => removeArrayItem("allowances", index)}
-                      className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                      className="h-[34px] px-2 flex items-center justify-center text-rose-600 hover:text-rose-800 rounded hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -1375,19 +1386,24 @@ export default function PayrollCreatePage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Bonuses</h3>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Gift size={15} className="text-emerald-700 shrink-0" />
+                  <span>Bonuses</span>
+                </h3>
                 <span className="font-bold text-emerald-700 text-xs">{formatRupee(totalBonuses)}</span>
               </div>
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.bonuses?.map((bonus, index) => (
                   <div key={index} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        size="sm"
-                        label="Name"
-                        value={bonus.name}
-                        onChange={(e) => handleArrayChange("bonuses", index, "name", e.target.value)}
-                      />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          size="sm"
+                          label="Name"
+                          value={bonus.name}
+                          onChange={(e) => handleArrayChange("bonuses", index, "name", e.target.value)}
+                        />
+                      </div>
                       <div className="w-28">
                         <NumberInput
                           size="sm"
@@ -1400,7 +1416,7 @@ export default function PayrollCreatePage() {
                       <button
                         type="button"
                         onClick={() => removeArrayItem("bonuses", index)}
-                        className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                        className="h-[34px] px-2 flex items-center justify-center text-rose-600 hover:text-rose-800 rounded hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -1427,19 +1443,24 @@ export default function PayrollCreatePage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Deductions</h3>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <MinusCircle size={15} className="text-rose-700 shrink-0" />
+                  <span>Deductions</span>
+                </h3>
                 <span className="font-bold text-rose-700 text-xs">{formatRupee(totalDeductions)}</span>
               </div>
               <div className="space-y-2 pt-3 max-h-64 overflow-y-auto">
                 {form?.deductions?.map((deduction, index) => (
                   <div key={index} className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        size="sm"
-                        label="Deduction"
-                        value={deduction.name}
-                        onChange={(e) => handleArrayChange("deductions", index, "name", e.target.value)}
-                      />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          size="sm"
+                          label="Deduction"
+                          value={deduction.name}
+                          onChange={(e) => handleArrayChange("deductions", index, "name", e.target.value)}
+                        />
+                      </div>
                       <div className="w-28">
                         <NumberInput
                           size="sm"
@@ -1452,7 +1473,7 @@ export default function PayrollCreatePage() {
                       <button
                         type="button"
                         onClick={() => removeArrayItem("deductions", index)}
-                        className="text-rose-600 hover:text-rose-800 p-1.5 rounded hover:bg-rose-50 transition-colors"
+                        className="h-[34px] px-2 flex items-center justify-center text-rose-600 hover:text-rose-800 rounded hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -1479,34 +1500,43 @@ export default function PayrollCreatePage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <h3 className="font-bold text-slate-800 text-sm">Salary Summary</h3>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Calculator size={15} className="text-slate-700 shrink-0" />
+                  <span>Salary Summary</span>
+                </h3>
               </div>
               <div className="space-y-2 pt-3 text-xs">
-                <div className="flex justify-between items-center text-slate-600">
-                  <span>Base Salary :</span>
-                  <span className="font-semibold text-slate-800">{formatRupee(selectedEmployeedetail?.salary || 0)}</span>
+                <div className="grid grid-cols-[105px_12px_1fr] items-center text-slate-600">
+                  <span>Base Salary</span>
+                  <span>:</span>
+                  <span className="font-semibold text-slate-800 text-right">{formatRupee(selectedEmployeedetail?.salary || 0)}</span>
                 </div>
-                <div className="flex justify-between items-center text-slate-600">
-                  <span>Allowances :</span>
-                  <span className="font-semibold text-slate-800">+{formatRupee(totalAllowances)}</span>
+                <div className="grid grid-cols-[105px_12px_1fr] items-center text-slate-600">
+                  <span>Allowances</span>
+                  <span>:</span>
+                  <span className="font-semibold text-slate-800 text-right">+{formatRupee(totalAllowances)}</span>
                 </div>
-                <div className="flex justify-between items-center text-slate-600">
-                  <span>Bonuses :</span>
-                  <span className="font-semibold text-slate-800">+{formatRupee(totalBonuses)}</span>
-                </div>
-                <div className="border-t border-slate-100 my-1.5" />
-                <div className="flex justify-between items-center font-bold text-slate-800">
-                  <span>Gross Salary :</span>
-                  <span>{formatRupee(grossSalary)}</span>
-                </div>
-                <div className="flex justify-between items-center text-slate-600 pt-1">
-                  <span>Deductions :</span>
-                  <span className="font-semibold text-rose-700">-{formatRupee(totalDeductions)}</span>
+                <div className="grid grid-cols-[105px_12px_1fr] items-center text-slate-600">
+                  <span>Bonuses</span>
+                  <span>:</span>
+                  <span className="font-semibold text-slate-800 text-right">+{formatRupee(totalBonuses)}</span>
                 </div>
                 <div className="border-t border-slate-100 my-1.5" />
-                <div className="flex justify-between items-center font-extrabold text-slate-900 text-sm pt-0.5">
-                  <span>Net Salary :</span>
-                  <span className="text-base text-slate-900 font-black">{formatRupee(netSalary)}</span>
+                <div className="grid grid-cols-[105px_12px_1fr] items-center font-bold text-slate-800">
+                  <span>Gross Salary</span>
+                  <span>:</span>
+                  <span className="text-right">{formatRupee(grossSalary)}</span>
+                </div>
+                <div className="grid grid-cols-[105px_12px_1fr] items-center text-slate-600 pt-1">
+                  <span>Deductions</span>
+                  <span>:</span>
+                  <span className="font-semibold text-rose-700 text-right">-{formatRupee(totalDeductions)}</span>
+                </div>
+                <div className="border-t border-slate-100 my-1.5" />
+                <div className="grid grid-cols-[105px_12px_1fr] items-center font-extrabold text-slate-900 text-sm pt-0.5">
+                  <span>Net Salary</span>
+                  <span>:</span>
+                  <span className="text-base text-slate-900 font-black text-right">{formatRupee(netSalary)}</span>
                 </div>
                 <div className="text-[11px] text-slate-500 italic capitalize pt-1">
                   In Words: {numberToWords(netSalary)}

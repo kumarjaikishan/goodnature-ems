@@ -2,12 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePermission from '../../../../utils/CheckPermission';
 import Select from '../../../../components/ui/Select';
+import TablePagination from '../../../../components/common/TablePagination';
 import {
   Search,
   RefreshCw,
   Calendar,
   ShieldCheck,
-  CreditCard,
   FileText,
   Eye,
   Edit3,
@@ -25,17 +25,19 @@ const KisanAgreementsTable = ({
   projects = [],
   projectFilter = 'ALL',
   setProjectFilter,
+  page = 1,
   setPage,
+  limit = 10,
+  setLimit,
+  total = 0,
   fetchAgreements,
   openCreateDeedModal,
-  openPaymentModal,
   loadAgreementDetails,
   openEditAgreement,
   handleDeleteAgreement,
 }) => {
   const navigate = useNavigate();
   const canCreateDeed = usePermission(['plot_purchase', 'plot_inventory'], 2);
-  const canPayKisan = usePermission(['kisan_ledger', 'plot_purchase'], 2);
   const canUpdateAgreement = usePermission(['plot_purchase', 'plot_inventory'], 3);
   const canDeleteAgreement = usePermission(['plot_purchase', 'plot_inventory'], 4);
 
@@ -43,31 +45,16 @@ const KisanAgreementsTable = ({
     <div className="space-y-4">
       {/* Filter / Search Bar */}
       <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPage(1);
-            fetchAgreements();
-          }}
-          className="flex items-center gap-2 w-full sm:w-80"
-        >
-          <div className="relative w-full">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Mauja, Khata, Khesra, Kisan, Agr #..."
-              className="h-10 w-full pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="h-10 px-4 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold text-xs rounded-xl transition cursor-pointer"
-          >
-            Search
-          </button>
-        </form>
+        <div className="relative w-full sm:w-80">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search Mauja, Khata, Khesra, Kisan, Agr #..."
+            className="h-10 w-full pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium focus:ring-2 focus:ring-teal-600 outline-none"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Project Filter */}
@@ -129,18 +116,19 @@ const KisanAgreementsTable = ({
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold select-none">
-                <th className="p-3.5 uppercase">Agreement No & Date</th>
+                <th className="p-3.5 uppercase w-[110px]">Agreement No</th>
+                <th className="p-3.5 uppercase min-w-[150px]">Project & Dates</th>
                 <th className="p-3.5 uppercase">Land Particulars</th>
-                <th className="p-3.5 uppercase w-[150px] max-w-[170px]">Land Seller</th>
-                <th className="p-3.5 uppercase text-right">Agreed Area</th>
-                <th className="p-3.5 uppercase text-right">Registered Area</th>
-                <th className="p-3.5 uppercase text-left min-w-[210px]">Actions</th>
+                <th className="p-3.5 uppercase w-[140px] max-w-[160px]">Land Seller</th>
+                <th className="p-3.5 uppercase text-right w-[110px]">Agreed Area</th>
+                <th className="p-3.5 uppercase text-right w-[130px]">Registered Area</th>
+                <th className="p-3.5 uppercase text-left w-[195px] min-w-[185px] max-w-[205px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {agreements.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={7} className="p-8 text-center text-slate-400 italic">
                     No Plot Purchase Agreements found matching criteria. Click "+ New Plot Purchase" above to register one.
                   </td>
                 </tr>
@@ -157,14 +145,30 @@ const KisanAgreementsTable = ({
                       {/* Agreement No */}
                       <td className="p-3.5">
                         <span className="font-mono font-bold text-teal-800 block text-xs">{agr.agreementNumber}</span>
-                        {agr.projectName && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-900 border border-teal-200/80">
-                            Project: {agr.projectName}
-                          </span>
+                        {attachmentsCount > 0 && (
+                          <div className="mt-1">
+                            <span
+                              className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
+                              title={`${attachmentsCount} Document attachment(s)`}
+                            >
+                              <Paperclip size={10} /> {attachmentsCount} files
+                            </span>
+                          </div>
                         )}
-                        <div className="space-y-0.5 mt-0.5">
+                      </td>
+
+                      {/* Project & Dates */}
+                      <td className="p-3.5">
+                        {agr.projectName ? (
+                          <span className="font-semibold text-slate-800 text-xs block mb-0.5">
+                            {agr.projectName}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs block mb-0.5">—</span>
+                        )}
+                        <div className="space-y-0.5">
                           <span className="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
-                            <Calendar size={11} className="text-teal-700" />
+                            <Calendar size={11} className="text-teal-700 shrink-0" />
                             {new Date(agr.agreementDate).toLocaleDateString('en-IN', {
                               day: '2-digit',
                               month: 'short',
@@ -172,32 +176,12 @@ const KisanAgreementsTable = ({
                             })}
                           </span>
                           {agr.agreementEndDate && (
-                            <span className="text-[10px] text-amber-700 flex items-center gap-1 font-medium bg-amber-50/80 px-1.5 py-0.5 rounded border border-amber-200/60 w-fit">
+                            <span className="text-[10px] text-slate-600 flex items-center gap-1 font-medium">
                               End: {new Date(agr.agreementEndDate).toLocaleDateString('en-IN', {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric',
                               })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <span
-                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${agr.status === 'FULLY_REGISTERED'
-                              ? 'bg-purple-100 text-purple-800'
-                              : agr.status === 'PARTIALLY_REGISTERED'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-emerald-100 text-emerald-800'
-                              }`}
-                          >
-                            {agr.status?.replace('_', ' ')}
-                          </span>
-                          {attachmentsCount > 0 && (
-                            <span
-                              className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded flex items-center gap-0.5"
-                              title={`${attachmentsCount} Document attachment(s)`}
-                            >
-                              <Paperclip size={10} /> {attachmentsCount}
                             </span>
                           )}
                         </div>
@@ -299,91 +283,82 @@ const KisanAgreementsTable = ({
 
                       {/* Registered Area */}
                       <td className="p-3.5 text-right font-mono">
-                        <span className="font-bold text-purple-700 block">{regDismil} Dismil</span>
-                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                          <div className="w-12 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <span className="font-semibold text-slate-900 block">{regDismil} Dismil</span>
+                        <div className="flex items-center justify-end gap-1.5 mt-1">
+                          <div className="w-14 bg-slate-100 rounded-full h-1 overflow-hidden">
                             <div
-                              className="bg-purple-600 h-1.5 rounded-full"
+                              className="bg-emerald-600 h-1 rounded-full transition-all duration-300"
                               style={{ width: `${Math.min(100, regPercent)}%` }}
                             />
                           </div>
-                          <span className="text-[10px] text-purple-600 font-bold">{regPercent}%</span>
+                          <span className="text-[10px] text-slate-500 font-medium tabular-nums">{regPercent}%</span>
                         </div>
-                        <span className="text-[9px] text-slate-400 block">
+                        <span className="text-[9px] text-slate-400 block tabular-nums mt-0.5">
                           ({agr.registryDeeds?.length || 0} Deed{agr.registryDeeds?.length === 1 ? '' : 's'})
                         </span>
                       </td>
 
                       {/* Actions */}
                       <td className="p-3.5">
-                        <div className="flex flex-col gap-1.5 items-start">
-                          {/* Row 1: Primary Viewing & Financial Actions */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="w-[185px] space-y-1.5">
+                          {/* Row 1: View, Deed, Ledger */}
+                          <div className="flex items-center gap-1.5">
                             {/* 1. View Agreement Overview / Audit */}
                             <button
                               onClick={() => loadAgreementDetails(agr._id, 'overview')}
-                              className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                              className="flex-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center justify-center gap-1"
                               title="View Agreement Details, Land & Plot Details & Full Audit"
                             >
-                              <Eye size={12} /> View
+                              <Eye size={12} className="text-slate-500" /> View
                             </button>
 
-                            {/* 2. + Deed */}
+                            {/* 2. Deed */}
                             {canCreateDeed && (
                               <button
                                 onClick={() => openCreateDeedModal(agr)}
-                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                                className="flex-1 px-2 py-1 bg-white hover:bg-teal-50 text-teal-800 border border-teal-300 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center justify-center gap-1"
                                 title="Create / Convert to Registry Deed from this agreement"
                               >
-                                <ShieldCheck size={12} /> + Deed
+                                <ShieldCheck size={12} className="text-teal-700" /> Deed
                               </button>
                             )}
 
-                            {/* 3. Pay Kisan */}
-                            {canPayKisan && (
-                              <button
-                                onClick={() => openPaymentModal(agr)}
-                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                                title="Record payment to Kisan"
-                              >
-                                <CreditCard size={12} /> Pay
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Row 2: Management & Ledger Actions */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {/* 4. Kisan Ledger */}
+                            {/* 3. Kisan Ledger */}
                             <button
                               onClick={() => navigate(`/dashboard/plots/purchase/${agr._id}/ledger`)}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
+                              className="flex-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center justify-center gap-1"
                               title="Open Kisan Financial Payment Ledger"
                             >
-                              <FileText size={12} /> Ledger
+                              <FileText size={12} className="text-slate-500" /> Ledger
                             </button>
-
-                            {/* 5. Edit Agreement */}
-                            {canUpdateAgreement && (
-                              <button
-                                onClick={() => openEditAgreement(agr)}
-                                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                                title="Edit Land Agreement"
-                              >
-                                <Edit3 size={12} /> Edit
-                              </button>
-                            )}
-
-                            {/* 6. Delete Agreement */}
-                            {canDeleteAgreement && (
-                              <button
-                                onClick={() => handleDeleteAgreement(agr)}
-                                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0"
-                                title="Delete Agreement"
-                              >
-                                <Trash2 size={12} /> Delete
-                              </button>
-                            )}
                           </div>
+
+                          {/* Row 2: Edit, Delete */}
+                          {(canUpdateAgreement || canDeleteAgreement) && (
+                            <div className="flex items-center gap-1.5">
+                              {/* 4. Edit Agreement */}
+                              {canUpdateAgreement && (
+                                <button
+                                  onClick={() => openEditAgreement(agr)}
+                                  className="flex-1 px-2 py-1 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center justify-center gap-1"
+                                  title="Edit Land Agreement"
+                                >
+                                  <Edit3 size={12} className="text-amber-700" /> Edit
+                                </button>
+                              )}
+
+                              {/* 5. Delete Agreement */}
+                              {canDeleteAgreement && (
+                                <button
+                                  onClick={() => handleDeleteAgreement(agr)}
+                                  className="flex-1 px-2 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center justify-center gap-1"
+                                  title="Delete Agreement"
+                                >
+                                  <Trash2 size={12} className="text-rose-600" /> Del
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -393,6 +368,13 @@ const KisanAgreementsTable = ({
             </tbody>
           </table>
         </div>
+        <TablePagination
+          currentPage={page}
+          totalItems={total}
+          rowsPerPage={limit}
+          onPageChange={setPage}
+          onRowsPerPageChange={setLimit}
+        />
       </div>
     </div>
   );

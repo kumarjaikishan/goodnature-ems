@@ -10,7 +10,11 @@ const advanceSchema = new mongoose.Schema({
     amount: { type: Number, required: true }, // Transaction amount
     
     // New fields for individual advance tracking
-    initialAmount: { type: Number }, // Original amount if it's a "given" type
+    initialAmount: { type: Number }, // Original amount (principal + interest) if it's a "given" type
+    principalAmount: { type: Number, default: 0 }, // Disbursed principal before interest
+    interestRate: { type: Number, default: 0 }, // Optional interest rate (%)
+    interestType: { type: String, enum: ["none", "yearly", "monthly", "flat"], default: "none" },
+    interestAmount: { type: Number, default: 0 }, // Calculated interest added to advance
     remainingBalance: { type: Number, default: 0 }, // Specific balance for this advance
     monthlyDeductionAmount: { type: Number, default: 0 }, // Monthly EMI deduction amount
     installments: { type: Number, default: 1 }, // Total planned deduction installments
@@ -29,7 +33,17 @@ const advanceSchema = new mongoose.Schema({
 
 // ✅ Auto update status before saving
 advanceSchema.pre("save", function (next) {
-    this.status = this.remainingBalance > 0 ? "open" : "closed";
+    if (this.type === "given") {
+        if (this.remainingBalance <= 0) {
+            this.status = "closed";
+        } else if (this.initialAmount && this.remainingBalance < this.initialAmount) {
+            this.status = "partially_paid";
+        } else {
+            this.status = "open";
+        }
+    } else {
+        this.status = "closed";
+    }
     next();
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Eye, Edit3, Trash2 } from 'lucide-react';
 import usePermission from '../../../../utils/CheckPermission';
 
@@ -12,8 +12,16 @@ const RegistryDeedsTable = ({
   openEditDeedModal,
   handleDeleteDeed,
 }) => {
+  const [localSearch, setLocalSearch] = useState(deedSearch || '');
   const canUpdateDeed = usePermission(['plot_purchase', 'plot_inventory'], 3);
   const canDeleteDeed = usePermission(['plot_purchase', 'plot_inventory'], 4);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDeedSearch(localSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localSearch, setDeedSearch]);
 
   return (
     <div className="space-y-4">
@@ -25,8 +33,8 @@ const RegistryDeedsTable = ({
             type="text"
             placeholder="Search Deed #, Mauja, Khata, Khesra, SRO, Farmer..."
             className="h-10 w-full pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-medium focus:ring-2 focus:ring-purple-600 outline-none"
-            value={deedSearch}
-            onChange={(e) => setDeedSearch(e.target.value)}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
           />
         </div>
 
@@ -34,9 +42,12 @@ const RegistryDeedsTable = ({
           <span>
             Showing {filteredDeeds.length} of {allRegistryDeeds.length} deeds
           </span>
-          {deedSearch && (
+          {localSearch && (
             <button
-              onClick={() => setDeedSearch('')}
+              onClick={() => {
+                setLocalSearch('');
+                setDeedSearch('');
+              }}
               className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg cursor-pointer"
             >
               Clear

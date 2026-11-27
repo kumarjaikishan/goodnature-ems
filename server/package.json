@@ -5,11 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "cross-env TZ=UTC node --env-file=.env scripts/seed.js",
     "dev": "cross-env TZ=UTC nodemon --env-file=.env index.js",
-    "start": "cross-env TZ=UTC node index.js",
-    "reset:data": "cross-env TZ=UTC node --env-file=.env scripts/resetOperationalData.js",
-    "migrate:branch-partners": "cross-env TZ=UTC node --env-file=.env scripts/migrate_branch_partners.js"
+    "start": "cross-env TZ=UTC node index.js"
   },
   "keywords": [],
   "author": "",

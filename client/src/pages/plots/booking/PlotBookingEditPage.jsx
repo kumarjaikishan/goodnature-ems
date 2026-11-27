@@ -13,6 +13,8 @@ import {
   Award,
   Users,
   Info,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import PageLoader from '../../../components/common/PageLoader';
@@ -33,6 +35,7 @@ export default function PlotBookingEditPage() {
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [bookingData, setBookingData] = useState(null);
+  const [unlockContractMeta, setUnlockContractMeta] = useState(false);
 
   // Master Data
   const [seriesList, setSeriesList] = useState([]);
@@ -1652,12 +1655,27 @@ export default function PlotBookingEditPage() {
           {/* Section 5: Payment Mode, Audit Reasons & Notes */}
           <div className="bg-white border border-slate-200 shadow-xs p-6 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
-                  5
-                </span>
-                <span>Payment Mode & Audit Narration</span>
-              </h3>
+              <div className="flex items-center justify-between gap-2 w-full">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">
+                    5
+                  </span>
+                  <span>Payment Mode & Audit Narration</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setUnlockContractMeta((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                    unlockContractMeta
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title={unlockContractMeta ? 'Lock contract metadata fields' : 'Unlock to edit Payment Mode, Booking Type, or Agreement Number'}
+                >
+                  {unlockContractMeta ? <Unlock size={13} /> : <Lock size={13} />}
+                  <span>{unlockContractMeta ? 'Unlocked (Click to Lock)' : 'Unlock to Edit'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1665,8 +1683,9 @@ export default function PlotBookingEditPage() {
                 <label className={labelCls}>Payment Mode</label>
                 <select
                   value={form.paymentMode}
+                  disabled={!unlockContractMeta}
                   onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-                  className={inputCls}
+                  className={`${inputCls} ${!unlockContractMeta ? 'bg-slate-100 text-slate-500 cursor-not-allowed opacity-80' : ''}`}
                 >
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
@@ -1681,8 +1700,10 @@ export default function PlotBookingEditPage() {
                   <input
                     type="text"
                     value={form.transactionReference}
+                    readOnly={!unlockContractMeta}
+                    disabled={!unlockContractMeta}
                     onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                    className={inputCls}
+                    className={`${inputCls} ${!unlockContractMeta ? 'bg-slate-100 text-slate-500 cursor-not-allowed opacity-80' : ''}`}
                     placeholder="e.g. TXN987654321 / CHQ-1002"
                   />
                 </div>
@@ -1692,8 +1713,9 @@ export default function PlotBookingEditPage() {
                 <label className={labelCls}>Booking Type</label>
                 <select
                   value={form.bookingType}
+                  disabled={!unlockContractMeta}
                   onChange={(e) => setForm({ ...form, bookingType: e.target.value })}
-                  className={inputCls}
+                  className={`${inputCls} ${!unlockContractMeta ? 'bg-slate-100 text-slate-500 cursor-not-allowed opacity-80' : ''}`}
                 >
                   <option value="BOOKING">Official Booking (Booked Plot)</option>
                   <option value="HOLD">Temporary Hold (Reserve with Expiry)</option>
@@ -1705,8 +1727,10 @@ export default function PlotBookingEditPage() {
                 <input
                   type="text"
                   value={form.agreementNumber}
+                  readOnly={!unlockContractMeta}
+                  disabled={!unlockContractMeta}
                   onChange={(e) => setForm({ ...form, agreementNumber: e.target.value })}
-                  className={inputCls}
+                  className={`${inputCls} ${!unlockContractMeta ? 'bg-slate-100 text-slate-500 cursor-not-allowed opacity-80' : ''}`}
                   placeholder="e.g. AGR-2026-001"
                 />
               </div>

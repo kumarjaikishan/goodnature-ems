@@ -69,6 +69,17 @@ const syncEmployeeAdvanceBalance = async (employeeId, session = null) => {
   return runningTotal;
 };
 
+const calculateAdvanceInterest = (principal, rate, interestType, installments) => {
+  const p = Number(principal) || 0;
+  const r = Number(rate) || 0;
+  const inst = Math.max(1, Number(installments) || 1);
+  if (p <= 0 || r <= 0 || !interestType || interestType === 'none') return 0;
+  if (interestType === 'yearly') return Math.round(p * (r / 100) * (inst / 12));
+  if (interestType === 'monthly') return Math.round(p * (r / 100) * inst);
+  if (interestType === 'flat') return Math.round(p * (r / 100));
+  return 0;
+};
+
 exports.syncEmployeeAdvanceBalance = syncEmployeeAdvanceBalance;
 
 // Add new advance
@@ -80,6 +91,9 @@ exports.addAdvance = async (req, res) => {
       employeeId,
       branchId,
       amount,
+      principalAmount,
+      interestRate,
+      interestType,
       type = "given",
       remarks,
       reason,
@@ -89,8 +103,19 @@ exports.addAdvance = async (req, res) => {
       deductionStartMonth
     } = req.body;
     const amountNum = Number(amount) || 0;
+    const installNum = Math.max(1, Number(installments) || 1);
+    const principalNum = type === "given"
+      ? (Number(principalAmount) > 0 ? Number(principalAmount) : amountNum)
+      : amountNum;
+    const rateNum = type === "given" ? (Number(interestRate) || 0) : 0;
+    const effInterestType = (type === "given" && rateNum > 0)
+      ? (interestType && interestType !== 'none' ? interestType : 'yearly')
+      : 'none';
+    const interestAmt = type === "given"
+      ? calculateAdvanceInterest(principalNum, rateNum, effInterestType, installNum)
+      : 0;
+    const totalAmount = type === "given" ? (principalNum + interestAmt) : amountNum;
     const monthlyDedNum = Number(monthlyDeductionAmount) || 0;
-    const installNum = Number(installments) || 1;
 
     const advanceDate = date ? new Date(date) : new Date();
     advanceDate.setHours(0, 0, 0, 0);
@@ -102,10 +127,14 @@ exports.addAdvance = async (req, res) => {
       employeeId,
       branchId,
       type,
-      amount: amountNum,
-      initialAmount: type === "given" ? amountNum : 0,
-      remainingBalance: type === "given" ? amountNum : 0,
-      monthlyDeductionAmount: type === "given" ? (monthlyDedNum > 0 ? monthlyDedNum : amountNum) : 0,
+      amount: totalAmount,
+      principalAmount: type === "given" ? principalNum : 0,
+      interestRate: rateNum,
+      interestType: effInterestType,
+      interestAmount: interestAmt,
+      initialAmount: type === "given" ? totalAmount : 0,
+      remainingBalance: type === "given" ? totalAmount : 0,
+      monthlyDeductionAmount: type === "given" ? (monthlyDedNum > 0 ? monthlyDedNum : Math.ceil(totalAmount / installNum)) : 0,
       installments: type === "given" ? installNum : 1,
       deductionStartMonth: type === "given" ? startMonthDate : null,
       remarks,
@@ -118,7 +147,7 @@ exports.addAdvance = async (req, res) => {
 
     // 2. If it's an adjustment/repayment, apply FIFO deduction to existing advances
     if (type === "adjusted" || type === "repaid") {
-      let remainingToAdjust = amountNum;
+      let remainingToAdjust = totalAmount;
       const openAdvances = await Advance.find({
         employeeId,
         remainingBalance: { $gt: 0 },
@@ -135,16 +164,20 @@ exports.addAdvance = async (req, res) => {
       }
     }
 
+    const interestLabel = interestAmt > 0
+      ? ` + Interest ₹${interestAmt} (${rateNum}% ${effInterestType})`
+      : '';
+
     // 3. Create Ledger Entry for General Accounting (DEBIT - Reduces payable/Increases debt)
     await accountingService.recordLedgerEntry({
       employeeId,
       companyId: req.user?.companyId,
       date: advanceDate,
       type: type === "given" ? 'DEBIT' : 'CREDIT',
-      amount: amountNum,
+      amount: totalAmount,
       source: 'advance',
       referenceId: newAdvance._id,
-      remarks: remarks || `${type === 'given' ? `Advance granted (EMI: ₹${newAdvance.monthlyDeductionAmount}/mo)` : 'Advance adjustment'}: ${reason || 'No reason'}`
+      remarks: remarks || `${type === 'given' ? `Advance granted (₹${principalNum}${interestLabel}, EMI: ₹${newAdvance.monthlyDeductionAmount}/mo)` : 'Advance adjustment'}: ${reason || 'No reason'}`
     }, session);
 
     // 4. Synchronize Running Balances and Employee Summary
@@ -243,6 +276,9 @@ exports.editAdvance = async (req, res) => {
     const { id } = req.params;
     const {
       amount,
+      principalAmount,
+      interestRate,
+      interestType,
       remarks,
       reason,
       date,
@@ -260,15 +296,37 @@ exports.editAdvance = async (req, res) => {
       throw new Error("Payroll-adjusted advances cannot be edited from here. Please edit the corresponding Payroll instead.");
     }
 
+    const effInstallments = installments !== undefined ? Math.max(1, Number(installments) || 1) : (advance.installments || 1);
+    let effectiveNewAmount = amount !== undefined ? Number(amount) || 0 : advance.amount;
+
+    if (advance.type === 'given') {
+      const principalNum = principalAmount !== undefined
+        ? (Number(principalAmount) || 0)
+        : (amount !== undefined ? (Number(amount) || 0) : (advance.principalAmount || advance.amount));
+      const rateNum = interestRate !== undefined ? (Number(interestRate) || 0) : (advance.interestRate || 0);
+      const effInterestType = rateNum > 0
+        ? (interestType && interestType !== 'none'
+          ? interestType
+          : (advance.interestType && advance.interestType !== 'none' ? advance.interestType : 'yearly'))
+        : 'none';
+      const interestAmt = calculateAdvanceInterest(principalNum, rateNum, effInterestType, effInstallments);
+
+      advance.principalAmount = principalNum;
+      advance.interestRate = rateNum;
+      advance.interestType = effInterestType;
+      advance.interestAmount = interestAmt;
+      effectiveNewAmount = principalNum + interestAmt;
+    }
+
     // 🔹 Synchronize with Ledger via accountingService, which properly
     // shifts the running balance of this entry AND every entry after it.
     const ledgerEntry = await Entry.findOne({ referenceId: advance._id }).session(session);
 
     if (ledgerEntry) {
-      const amountChanged = amount !== undefined && amount !== advance.amount;
+      const amountChanged = effectiveNewAmount !== advance.amount;
       if (amountChanged || date || remarks) {
         const type = (advance.type === 'given' ? 'DEBIT' : 'CREDIT');
-        const effectiveAmount = amountChanged ? amount : (ledgerEntry.debit || ledgerEntry.credit);
+        const effectiveAmount = amountChanged ? effectiveNewAmount : (ledgerEntry.debit || ledgerEntry.credit);
         await accountingService.updateLedgerEntry(ledgerEntry._id, {
           debit: type === 'DEBIT' ? effectiveAmount : 0,
           credit: type === 'CREDIT' ? effectiveAmount : 0,
@@ -276,14 +334,14 @@ exports.editAdvance = async (req, res) => {
           date: date ? new Date(date) : ledgerEntry.date,
         }, session);
       }
-    } else if (amount !== undefined && amount !== advance.amount) {
+    } else if (effectiveNewAmount !== advance.amount) {
       // Fallback: create if missing
       await accountingService.recordLedgerEntry({
         employeeId: advance.employeeId,
         companyId: advance.companyId,
         date: date ? new Date(date) : advance.date,
         type: advance.type === 'given' ? 'DEBIT' : 'CREDIT',
-        amount: amount,
+        amount: effectiveNewAmount,
         source: advance.type === 'repaid' ? 'manual' : 'advance',
         referenceId: advance._id,
         remarks: remarks || `Advance entry updated`
@@ -294,17 +352,25 @@ exports.editAdvance = async (req, res) => {
       advance.monthlyDeductionAmount = Number(monthlyDeductionAmount) || 0;
     }
     if (installments !== undefined) {
-      advance.installments = Number(installments) || 1;
+      advance.installments = effInstallments;
     }
     if (deductionStartMonth !== undefined) {
       advance.deductionStartMonth = deductionStartMonth ? new Date(deductionStartMonth) : null;
     }
 
-    if (amount !== undefined && amount !== advance.amount) {
-      const difference = amount - advance.amount;
-      advance.amount = amount;
-      advance.initialAmount = amount;
-      advance.remainingBalance += difference;
+    if (effectiveNewAmount !== advance.amount) {
+      if (advance.type === 'given') {
+        const previousInitial = Number(advance.initialAmount ?? advance.amount) || 0;
+        const alreadyRecovered = Math.max(0, previousInitial - (Number(advance.remainingBalance) || 0));
+        if (effectiveNewAmount < alreadyRecovered) {
+          throw new Error(`Cannot reduce advance to ₹${effectiveNewAmount} because ₹${alreadyRecovered} has already been recovered.`);
+        }
+        advance.amount = effectiveNewAmount;
+        advance.initialAmount = effectiveNewAmount;
+        advance.remainingBalance = effectiveNewAmount - alreadyRecovered;
+      } else {
+        advance.amount = effectiveNewAmount;
+      }
     }
 
     if (remarks) advance.remarks = remarks;
@@ -417,6 +483,12 @@ exports.getEmployeeActiveAdvance = async (req, res) => {
       return res.status(400).json({ success: false, message: "Employee ID is required" });
     }
 
+    const month = Number(req.query.month);
+    const year = Number(req.query.year);
+    const periodEnd = (month >= 1 && month <= 12 && year >= 2000)
+      ? new Date(year, month, 0, 23, 59, 59, 999)
+      : null;
+
     const openAdvances = await Advance.find({
       employeeId,
       remainingBalance: { $gt: 0 },
@@ -424,8 +496,14 @@ exports.getEmployeeActiveAdvance = async (req, res) => {
     }).sort({ date: 1, createdAt: 1 });
 
     const totalRemaining = openAdvances.reduce((sum, a) => sum + (a.remainingBalance || 0), 0);
-    // Sum of scheduled monthly EMIs across active advances (or the remaining balance if less)
-    const suggestedMonthlyEMI = openAdvances.reduce((sum, a) => {
+
+    // Filter out advances scheduled to start in a future payroll month
+    const dueAdvances = periodEnd
+      ? openAdvances.filter(a => !a.deductionStartMonth || new Date(a.deductionStartMonth) <= periodEnd)
+      : openAdvances;
+
+    // Sum of scheduled monthly EMIs across due active advances (or the remaining balance if less)
+    const suggestedMonthlyEMI = dueAdvances.reduce((sum, a) => {
       const emi = a.monthlyDeductionAmount > 0 ? a.monthlyDeductionAmount : a.remainingBalance;
       return sum + Math.min(emi, a.remainingBalance);
     }, 0);
@@ -437,6 +515,7 @@ exports.getEmployeeActiveAdvance = async (req, res) => {
         totalRemainingBalance: totalRemaining,
         suggestedMonthlyDeduction: suggestedMonthlyEMI,
         activeAdvancesCount: openAdvances.length,
+        dueAdvancesCount: dueAdvances.length,
         openAdvances
       }
     });

@@ -6,7 +6,7 @@ import { toast } from "../../utils/toast";
 import { FirstFetch } from "../../../store/userSlice";
 import { cloudinaryUrl } from "../../utils/imageurlsetter";
 import dayjs from "dayjs";
-import { Edit2, Trash2, Plus, User, Search, X } from "lucide-react";
+import { Edit2, Trash2, Plus, User, Search, Wallet } from "lucide-react";
 import { useCustomStyles } from "../admin/attandence/attandencehelper";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -17,6 +17,17 @@ import NumberInput from "@/components/ui/NumberInput";
 import Modalbox from "@/components/custommodal/Modalbox";
 import { swal } from "../../utils/confirmDialog";
 import { usePermission } from "../../utils/CheckPermission";
+
+const calculateAdvanceInterest = (principal, rate, interestType, installments) => {
+    const p = Number(principal) || 0;
+    const r = Number(rate) || 0;
+    const inst = Math.max(1, Number(installments) || 1);
+    if (p <= 0 || r <= 0 || !interestType || interestType === 'none') return 0;
+    if (interestType === 'yearly') return Math.round(p * (r / 100) * (inst / 12));
+    if (interestType === 'monthly') return Math.round(p * (r / 100) * inst);
+    if (interestType === 'flat') return Math.round(p * (r / 100));
+    return 0;
+};
 
 const getInitialBg = (name) => {
     const colors = [
@@ -44,6 +55,14 @@ const EmployeeAdvancePage = () => {
     const [rows, setRows] = useState([]);
     const [open, setOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const [repayModal, setRepayModal] = useState({
+        open: false,
+        advanceId: "",
+        maxAmount: 0,
+        amount: 0,
+        date: dayjs().format("YYYY-MM-DD"),
+        remarks: "",
+    });
     const [branchEmp, setbranchEmp] = useState([]);
     const [loading, setloading] = useState(false);
 
@@ -63,8 +82,12 @@ const EmployeeAdvancePage = () => {
         branchId: "",
         empId: "",
         amount: 0,
+        applyInterest: false,
+        interestRate: 0,
+        interestType: "yearly",
         monthlyDeductionAmount: 0,
         installments: 1,
+        deductionStartMonth: dayjs().format("YYYY-MM"),
         type: "given",
         remarks: "",
         date: dayjs().format("YYYY-MM-DD"),
@@ -180,30 +203,33 @@ const EmployeeAdvancePage = () => {
         window.history.replaceState({}, "", url);
     };
 
+    const calculatedInterest = form.type === 'given' && form.applyInterest
+        ? calculateAdvanceInterest(form.amount, form.interestRate, form.interestType, form.installments)
+        : 0;
+    const totalPayableWithInterest = (Number(form.amount) || 0) + calculatedInterest;
+
     const handleChange = (field, rawValue) => {
         const raw = (rawValue !== null && typeof rawValue === 'object' && rawValue.target !== undefined)
-            ? rawValue.target.value
+            ? (rawValue.target.type === 'checkbox' ? rawValue.target.checked : rawValue.target.value)
             : rawValue;
 
         setForm(prev => {
             const next = { ...prev, [field]: raw };
-            if (field === 'amount' && next.type === 'given') {
-                const amt = Number(raw) || 0;
-                const inst = Number(next.installments) || 1;
-                if (inst > 0) {
-                    next.monthlyDeductionAmount = amt > 0 ? Math.ceil(amt / inst) : 0;
-                }
-            } else if (field === 'installments' && next.type === 'given') {
-                const inst = Number(raw) || 1;
-                const amt = Number(next.amount) || 0;
-                if (inst > 0) {
-                    next.monthlyDeductionAmount = amt > 0 ? Math.ceil(amt / inst) : 0;
-                }
-            } else if (field === 'monthlyDeductionAmount' && next.type === 'given') {
-                const emi = Number(raw) || 0;
-                const amt = Number(next.amount) || 0;
-                if (emi > 0 && amt > 0) {
-                    next.installments = Math.ceil(amt / emi);
+            if (next.type === 'given') {
+                const principal = Number(next.amount) || 0;
+                const inst = Math.max(1, Number(next.installments) || 1);
+                const interest = next.applyInterest
+                    ? calculateAdvanceInterest(principal, next.interestRate, next.interestType, inst)
+                    : 0;
+                const totalPayable = principal + interest;
+
+                if (['amount', 'installments', 'applyInterest', 'interestRate', 'interestType'].includes(field)) {
+                    next.monthlyDeductionAmount = totalPayable > 0 ? Math.ceil(totalPayable / inst) : 0;
+                } else if (field === 'monthlyDeductionAmount') {
+                    const emi = Number(raw) || 0;
+                    if (emi > 0 && totalPayable > 0) {
+                        next.installments = Math.ceil(totalPayable / emi);
+                    }
                 }
             }
             return next;
@@ -218,14 +244,24 @@ const EmployeeAdvancePage = () => {
             return toast.warn("You do not have permission to record advance entries");
         }
         if (row) {
+            const hasInterest = Number(row.interestRate) > 0 || Number(row.interestAmount) > 0;
+            const principalVal = row.principalAmount > 0
+                ? row.principalAmount
+                : Math.max(0, (Number(row.amount) || 0) - (Number(row.interestAmount) || 0));
             setForm({
                 employeeId: row.employeeId?._id || row.employeeId || "",
                 companyId: row.companyId || "",
                 branchId: row.branchId || "",
                 empId: row.empId || "",
-                amount: row.amount || "",
+                amount: principalVal || "",
+                applyInterest: hasInterest,
+                interestRate: row.interestRate || 0,
+                interestType: row.interestType && row.interestType !== 'none' ? row.interestType : 'yearly',
                 monthlyDeductionAmount: row.monthlyDeductionAmount || row.amount || "",
                 installments: row.installments || 1,
+                deductionStartMonth: row.deductionStartMonth
+                    ? dayjs(row.deductionStartMonth).format("YYYY-MM")
+                    : dayjs(row.date).format("YYYY-MM"),
                 type: row.type || "given",
                 remarks: row.remarks || "",
                 date: dayjs(row.date).format("YYYY-MM-DD"),
@@ -239,8 +275,12 @@ const EmployeeAdvancePage = () => {
                 branchId: defaultEmp?.branchId || "",
                 empId: defaultEmp?.empId || "",
                 amount: "",
+                applyInterest: false,
+                interestRate: 0,
+                interestType: "yearly",
                 monthlyDeductionAmount: "",
                 installments: 1,
+                deductionStartMonth: dayjs().format("YYYY-MM"),
                 type: "given",
                 remarks: "",
                 date: dayjs().format("YYYY-MM-DD"),
@@ -266,6 +306,23 @@ const EmployeeAdvancePage = () => {
         if (!form.amount || Number(form.amount) <= 0) {
             return toast.error("Please enter a valid advance amount");
         }
+        if (form.type === 'given' && form.applyInterest && Number(form.interestRate) < 0) {
+            return toast.error("Interest rate cannot be negative");
+        }
+
+        const principalNum = Number(form.amount) || 0;
+        const rateNum = (form.type === 'given' && form.applyInterest) ? (Number(form.interestRate) || 0) : 0;
+        const effInterestType = (form.type === 'given' && form.applyInterest && rateNum > 0) ? form.interestType : 'none';
+        const payload = {
+            ...form,
+            principalAmount: form.type === 'given' ? principalNum : 0,
+            amount: form.type === 'given' ? totalPayableWithInterest : principalNum,
+            interestRate: rateNum,
+            interestType: effInterestType,
+            deductionStartMonth: form.type === 'given' && form.deductionStartMonth
+                ? `${form.deductionStartMonth}-01`
+                : null,
+        };
 
         try {
             setloading(true);
@@ -273,14 +330,14 @@ const EmployeeAdvancePage = () => {
                 await apiClient({
                     url: `advance/${editingId}`,
                     method: "PUT",
-                    body: form
+                    body: payload
                 });
                 toast.success("Advance updated successfully");
             } else {
                 await apiClient({
                     url: `advance`,
                     method: "POST",
-                    body: form
+                    body: payload
                 });
                 toast.success("Advance recorded successfully");
             }
@@ -327,6 +384,54 @@ const EmployeeAdvancePage = () => {
                 }
             }
         });
+    };
+
+    const handleOpenRepay = (row) => {
+        if (!canCreate && !canUpdate) {
+            return toast.warn("You do not have permission to record advance repayments");
+        }
+        const maxAmt = Number(row.remainingBalance ?? row.amount ?? 0);
+        setRepayModal({
+            open: true,
+            advanceId: row._id,
+            maxAmount: maxAmt,
+            amount: maxAmt,
+            date: dayjs().format("YYYY-MM-DD"),
+            remarks: "",
+        });
+    };
+
+    const handleRepaySubmit = async (e) => {
+        if (e) e.preventDefault();
+        const repayAmt = Number(repayModal.amount) || 0;
+        if (repayAmt <= 0) {
+            return toast.error("Please enter a valid repayment amount");
+        }
+        if (repayAmt > repayModal.maxAmount) {
+            return toast.error(`Repayment amount cannot exceed ₹${repayModal.maxAmount.toLocaleString('en-IN')}`);
+        }
+        try {
+            setloading(true);
+            await apiClient({
+                url: "advance/repay",
+                method: "POST",
+                body: {
+                    advanceId: repayModal.advanceId,
+                    amount: repayAmt,
+                    date: repayModal.date,
+                    remarks: repayModal.remarks,
+                },
+            });
+            toast.success("Repayment recorded successfully");
+            setRepayModal((p) => ({ ...p, open: false }));
+            fetchAdvanceData();
+            dispatch(FirstFetch());
+        } catch (error) {
+            console.error("Error recording repayment:", error);
+            toast.error(error.message || "Failed to record repayment");
+        } finally {
+            setloading(false);
+        }
     };
 
     /* -------------------- TABLE -------------------- */
@@ -379,9 +484,16 @@ const EmployeeAdvancePage = () => {
         { 
             name: "Given (₹)", 
             selector: (r) => r.type === "given" ? r.amount : 0, 
-            width: "110px",
+            width: "145px",
             cell: (r) => r.type === "given" ? (
-                <span className="font-mono font-bold text-teal-700">₹{r.amount?.toLocaleString('en-IN')}</span>
+                <div>
+                    <span className="font-mono font-bold text-teal-700">₹{r.amount?.toLocaleString('en-IN')}</span>
+                    {Number(r.interestAmount) > 0 && (
+                        <span className="block text-[10px] text-slate-500 leading-tight">
+                            ₹{(r.principalAmount || (r.amount - r.interestAmount))?.toLocaleString('en-IN')} + ₹{r.interestAmount?.toLocaleString('en-IN')} ({r.interestRate}% {r.interestType})
+                        </span>
+                    )}
+                </div>
             ) : '-'
         },
         { 
@@ -392,6 +504,9 @@ const EmployeeAdvancePage = () => {
                 <div className="text-xs">
                     <span className="font-mono font-bold text-slate-800">₹{r.monthlyDeductionAmount?.toLocaleString('en-IN')}</span>
                     <span className="text-[10px] text-slate-400 block">/month ({r.installments || 1} inst)</span>
+                    {r.deductionStartMonth && (
+                        <span className="text-[10px] text-teal-700 block">From {dayjs(r.deductionStartMonth).format('MMM YYYY')}</span>
+                    )}
                 </div>
             ) : '-'
         },
@@ -415,11 +530,21 @@ const EmployeeAdvancePage = () => {
                 return <span className="text-slate-400 font-mono">-</span>;
             }
         },
-        ...(canUpdate || canDelete ? [{
+        ...(canCreate || canUpdate || canDelete ? [{
             name: "Actions",
             cell: (row) =>
                 !row.payrollId && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                        {(canCreate || canUpdate) && row.type === 'given' && (Number(row.remainingBalance ?? row.amount ?? 0) > 0) && (
+                            <button
+                                type="button"
+                                title="Repay Advance"
+                                onClick={() => handleOpenRepay(row)}
+                                className="p-1 text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                            >
+                                <Wallet size={15} />
+                            </button>
+                        )}
                         {canUpdate && (
                             <button
                                 type="button"
@@ -442,7 +567,7 @@ const EmployeeAdvancePage = () => {
                         )}
                     </div>
                 ),
-            width: "90px"
+            width: "110px"
         }] : []),
     ];
 
@@ -674,20 +799,53 @@ const EmployeeAdvancePage = () => {
                         <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                             <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
                                 <span>Monthly Recovery Schedule (EMI)</span>
-                                <span className="text-[11px] text-teal-700 font-semibold">Auto-calculated</span>
+                                <label className="inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-semibold text-teal-700">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                                        checked={Boolean(form.applyInterest)}
+                                        onChange={(e) => handleChange('applyInterest', e.target.checked)}
+                                    />
+                                    Apply Interest
+                                </label>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <NumberInput
-                                    label="Monthly EMI (₹)"
-                                    currency
-                                    min="1"
-                                    max={Number(form.amount) > 0 ? Number(form.amount) : undefined}
-                                    placeholder="e.g. 5000"
-                                    value={form.monthlyDeductionAmount}
-                                    onChange={(val) => handleChange('monthlyDeductionAmount', val)}
-                                />
+                            {form.applyInterest && (
+                                <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-2.5">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <NumberInput
+                                            label="Interest Rate (%)"
+                                            min="0"
+                                            max="100"
+                                            step="0.1"
+                                            placeholder="e.g. 12"
+                                            value={form.interestRate}
+                                            onChange={(val) => handleChange('interestRate', val)}
+                                        />
+                                        <Select
+                                            label="Rate Basis"
+                                            options={[
+                                                { label: 'Yearly (% p.a.)', value: 'yearly' },
+                                                { label: 'Monthly (% / mo)', value: 'monthly' },
+                                                { label: 'Flat (%)', value: 'flat' }
+                                            ]}
+                                            value={form.interestType}
+                                            onChange={(e) => handleChange('interestType', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 text-[11px] text-slate-600">
+                                        <span>
+                                            Principal: <strong className="font-mono text-slate-800">₹{(Number(form.amount) || 0).toLocaleString('en-IN')}</strong>
+                                            {' '}+ Interest: <strong className="font-mono text-amber-700">₹{calculatedInterest.toLocaleString('en-IN')}</strong>
+                                        </span>
+                                        <span>
+                                            Total Payable: <strong className="font-mono text-teal-800">₹{totalPayableWithInterest.toLocaleString('en-IN')}</strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
+                            <div className="grid grid-cols-2 gap-3">
                                 <NumberInput
                                     label="Installments (Months)"
                                     min="1"
@@ -695,6 +853,27 @@ const EmployeeAdvancePage = () => {
                                     placeholder="e.g. 6"
                                     value={form.installments}
                                     onChange={(val) => handleChange('installments', val)}
+                                />
+
+                                <NumberInput
+                                    label="Monthly EMI (₹)"
+                                    currency
+                                    disabled
+                                    readOnly
+                                    placeholder="Auto-calculated"
+                                    value={form.monthlyDeductionAmount}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-700 tracking-wide">
+                                    Recovery Start Month
+                                </label>
+                                <input
+                                    type="month"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 transition"
+                                    value={form.deductionStartMonth || ""}
+                                    onChange={(e) => handleChange('deductionStartMonth', e.target.value)}
                                 />
                             </div>
                         </div>
@@ -708,6 +887,57 @@ const EmployeeAdvancePage = () => {
                             className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-3 text-sm text-slate-800 outline-none transition"
                             value={form.remarks}
                             onChange={(e) => handleChange('remarks', e.target.value)}
+                        />
+                    </div>
+                </form>
+            </Modalbox>
+
+            {/* Direct Repay Advance Modal */}
+            <Modalbox
+                open={repayModal.open}
+                onClose={() => setRepayModal((p) => ({ ...p, open: false }))}
+                title="Repay Employee Advance"
+                subtitle={`Remaining Balance: ₹${repayModal.maxAmount.toLocaleString('en-IN')}`}
+                maxWidth="max-w-md"
+                footer={
+                    <>
+                        <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => setRepayModal((p) => ({ ...p, open: false }))}
+                        >
+                            Cancel
+                        </Button>
+                        <Button form="repay-advance-form" variant="primary" type="submit" loading={loading}>
+                            Confirm Repayment
+                        </Button>
+                    </>
+                }
+            >
+                <form id="repay-advance-form" onSubmit={handleRepaySubmit} className="space-y-4">
+                    <DateInput
+                        label="Repayment Date"
+                        required
+                        value={repayModal.date}
+                        onChange={(e) => setRepayModal((p) => ({ ...p, date: e?.target?.value || e }))}
+                    />
+                    <NumberInput
+                        label="Repayment Amount (₹)"
+                        currency
+                        required
+                        min="1"
+                        max={repayModal.maxAmount}
+                        value={repayModal.amount}
+                        onChange={(val) => setRepayModal((p) => ({ ...p, amount: val }))}
+                    />
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-slate-700 tracking-wide">Remarks</label>
+                        <textarea
+                            rows={2}
+                            placeholder="Optional repayment remarks..."
+                            className="w-full rounded-lg border border-slate-300 hover:border-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-100/80 p-2.5 text-sm text-slate-800 outline-none transition"
+                            value={repayModal.remarks}
+                            onChange={(e) => setRepayModal((p) => ({ ...p, remarks: e.target.value }))}
                         />
                     </div>
                 </form>

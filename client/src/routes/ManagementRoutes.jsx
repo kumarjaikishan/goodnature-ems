@@ -55,6 +55,7 @@ const InstallmentCollection = lazy(() => import('../pages/plots/installments/Ins
 const ProductCollectionsPage = lazy(() => import('../pages/plots/products/ProductCollectionsPage'));
 const PlotSeriesMaster = lazy(() => import('../pages/plots/seriesMaster/PlotSeriesMaster'));
 const PlotProductsPage = lazy(() => import('../pages/plots/products/PlotProductsPage'));
+const PlanAndRatesPage = lazy(() => import('../pages/plots/products/PlanAndRatesPage'));
 const ProductSalesPage = lazy(() => import('../pages/plots/products/ProductSalesPage'));
 const ProductBookingPage = lazy(() => import('../pages/plots/products/ProductBookingPage'));
 const PlotReports = lazy(() => import('../pages/plots/reports/PlotReports'));
@@ -72,6 +73,7 @@ const PlotPriceCalculatorPage = lazy(() => import('../pages/plots/businessDevelo
 const PlotIncentivesPage = lazy(() => import('../pages/plots/incentives/PlotIncentivesPage'));
 const PlotIncentiveProcessPage = lazy(() => import('../pages/plots/incentives/PlotIncentiveProcessPage'));
 const PlotPurchasePage = lazy(() => import('../pages/plots/purchase/PlotPurchasePage'));
+const LandSellersMasterPage = lazy(() => import('../pages/plots/purchase/LandSellersMasterPage'));
 const PurchasersMasterPage = lazy(() => import('../pages/plots/purchase/PurchasersMasterPage'));
 const PlotKisanLedgerPage = lazy(() => import('../pages/plots/purchase/PlotKisanLedgerPage'));
 const PlotBookingEditPage = lazy(() => import('../pages/plots/booking/PlotBookingEditPage'));
@@ -145,6 +147,7 @@ const ManagementRoutes = () => (
       <Route path="account/seller-pay" element={<RoutePermissionGuard resource="seller_pay" action={1}><DirectPayPage mode="seller" /></RoutePermissionGuard>} />
 
       <Route path="plots/purchase" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
+      <Route path="plots/sellers" element={<RoutePermissionGuard resource={["kisan_seller", "kisan_ledger", "plot_purchase", "plot_inventory"]} action={1}><LandSellersMasterPage /></RoutePermissionGuard>} />
       <Route path="plots/purchasers" element={<RoutePermissionGuard resource={["purchasers_master", "plot_purchase", "plot_inventory"]} action={1}><PurchasersMasterPage /></RoutePermissionGuard>} />
       <Route path="plots/purchase/:id/ledger" element={<RoutePermissionGuard resource="kisan_ledger" action={1}><PlotKisanLedgerPage /></RoutePermissionGuard>} />
       <Route path="plots/agreements" element={<RoutePermissionGuard resource={["plot_purchase", "plot_inventory"]} action={1}><PlotPurchasePage /></RoutePermissionGuard>} />
@@ -191,6 +194,7 @@ const ManagementRoutes = () => (
       <Route path="plots/collections/products/add" element={<Navigate to="/dashboard/plots/collections/products/emi/add" replace />} />
       <Route path="plots/series-master" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotSeriesMaster /></RoutePermissionGuard>} />
       <Route path="plots/products" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlotProductsPage /></RoutePermissionGuard>} />
+      <Route path="plots/plan-rates" element={<RoutePermissionGuard resource="plot_inventory" action={1}><PlanAndRatesPage /></RoutePermissionGuard>} />
       <Route path="plots/investment-booking" element={<RoutePermissionGuard resource="investment_booking" action={1}><ProductSalesPage /></RoutePermissionGuard>} />
       <Route path="plots/investment-booking/new" element={<RoutePermissionGuard resource="investment_booking" action={2}><ProductBookingPage /></RoutePermissionGuard>} />
       <Route path="plots/investment-booking/edit/:id" element={<RoutePermissionGuard resource="investment_booking" action={3}><ProductBookingPage /></RoutePermissionGuard>} />

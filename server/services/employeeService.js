@@ -93,9 +93,14 @@ class EmployeeService {
         let employeeUpdateData = {};
         let userUpdateData = {};
 
+        const shouldRemovePhoto = !file && (data.removeProfileImage === true || data.removeProfileImage === "true");
+
         if (file) {
             employeeUpdateData.profileimage = file.secure_url;
             await Ledger.findByIdAndUpdate(existingEmployee.ledgerId, { profileImage: file.secure_url }).session(session);
+        } else if (shouldRemovePhoto) {
+            employeeUpdateData.profileimage = "";
+            await Ledger.findByIdAndUpdate(existingEmployee.ledgerId, { profileImage: "" }).session(session);
         }
 
         for (const key in data) {
@@ -118,7 +123,7 @@ class EmployeeService {
                 await Ledger.findByIdAndUpdate(existingEmployee.ledgerId, { name: value }).session(session);
             } else if (key === "email") {
                 userUpdateData.email = value;
-            } else if (!["_id", "companyId", "userid", "empId", "ledgerId", "photo", "password", "employeeId"].includes(key)) {
+            } else if (!["_id", "companyId", "userid", "empId", "ledgerId", "photo", "password", "employeeId", "removeProfileImage"].includes(key)) {
                 employeeUpdateData[key] = value;
             }
         }
@@ -128,7 +133,10 @@ class EmployeeService {
             await usermodal.findByIdAndUpdate(existingEmployee.userid, userUpdateData).session(session);
         }
 
-        return updatedEmployee;
+        return {
+            updatedEmployee,
+            previousProfileImage: (file || shouldRemovePhoto) ? (existingEmployee.profileimage || "") : ""
+        };
     }
 }
 

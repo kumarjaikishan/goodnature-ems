@@ -110,6 +110,7 @@ const Navbar = () => {
     "installments": "Collections",
     "series-master": "Plot Series Master",
     "products": "Plot Products",
+    "plan-rates": "Plan & Rates",
     "book": "Product Booking",
     "reports": "Plot Reports",
     "incentives": "Incentive Closing",
@@ -207,6 +208,10 @@ const Navbar = () => {
       } else {
         pageTitle = "Plot Products";
       }
+    } else if (pathParts.includes("sellers")) {
+      pageTitle = "Land Seller";
+    } else if (pathParts.includes("purchasers")) {
+      pageTitle = "Purchasers / Buyers";
     } else if (pathParts.includes("product-sales")) {
       pageTitle = "Investment Bookings";
     } else if (pathParts.includes("receipts")) {

@@ -105,7 +105,7 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
     else if (status === "weekly off") status = "W";
     else if (status === "holiday") status = "H";
 
-    const isWeekend = dayObj.day() === 0; // Sunday
+    const isWeekend = weeklyOffDays.includes(dayObj.day());
 
     // Build hover tooltip ONLY for Absent ('A') and Leave ('L')
     let tooltipTitle = undefined;
@@ -329,11 +329,11 @@ const RegisterView = ({ filters, setcsvcall, csvcall, reportAttendance, reportLo
 
                 {/* Day Headers */}
                 {days.map((d) => {
-                  const isSunday = d.day() === 0;
+                  const isWeeklyOff = weeklyOffDays.includes(d.day());
                   return (
                     <th
                       key={d.date()}
-                      className={`w-9 min-w-[34px] py-1.5 text-center border-r border-slate-200 ${isSunday ? "bg-amber-50/70 text-amber-900 font-bold" : "text-slate-600"
+                      className={`w-9 min-w-[34px] py-1.5 text-center border-r border-slate-200 ${isWeeklyOff ? "bg-amber-50/70 text-amber-900 font-bold" : "text-slate-600"
                         }`}
                     >
                       <div className="text-[11px] font-bold leading-tight">{d.format("DD")}</div>

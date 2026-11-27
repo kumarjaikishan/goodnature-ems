@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Search, LayoutGrid, List, Plus } from "lucide-react";
+import { Search, LayoutGrid, List, UserPlus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 
@@ -97,10 +97,10 @@ export default function UserFilterBar({
                         <Button
                             variant="primary"
                             size="sm"
-                            startIcon={Plus}
+                            startIcon={UserPlus}
                             onClick={onAddUser}
                         >
-                            Add System User / Operator
+                            Add User
                         </Button>
                     )}
                 </div>

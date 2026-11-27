@@ -575,10 +575,12 @@ export default function FundTransfersPage() {
                         )}
                         <div>
                           <div className="font-bold text-slate-900 leading-tight">
-                            {t.fromLedgerId?.name || "Source Account"}
+                            {String(t.fromLedgerId?.name || "Source Account").replace(/\s*\(Cash Ledger\)\s*$/i, "")}
                           </div>
                           <div className="text-[10px] text-slate-400 uppercase">
-                            {t.fromLedgerId?.ledgerType === "bank" ? "Bank A/c" : "Cashier Wallet"}
+                            {t.fromLedgerId?.ledgerType === "bank"
+                              ? (t.fromLedgerId.bankName && t.fromLedgerId.bankName !== t.fromLedgerId.name ? t.fromLedgerId.bankName : "Bank Account")
+                              : "Cash Account"}
                           </div>
                         </div>
                       </div>
@@ -603,10 +605,12 @@ export default function FundTransfersPage() {
                         )}
                         <div>
                           <div className="font-bold text-slate-900 leading-tight">
-                            {t.toLedgerId?.name || "Destination Account"}
+                            {String(t.toLedgerId?.name || "Destination Account").replace(/\s*\(Cash Ledger\)\s*$/i, "")}
                           </div>
                           <div className="text-[10px] text-slate-400 uppercase">
-                            {t.toLedgerId?.ledgerType === "bank" ? "Bank A/c" : "Cashier Wallet"}
+                            {t.toLedgerId?.ledgerType === "bank"
+                              ? (t.toLedgerId.bankName && t.toLedgerId.bankName !== t.toLedgerId.name ? t.toLedgerId.bankName : "Bank Account")
+                              : "Cash Account"}
                           </div>
                         </div>
                       </div>

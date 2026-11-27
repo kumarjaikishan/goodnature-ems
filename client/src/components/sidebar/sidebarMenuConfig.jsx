@@ -137,6 +137,7 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
           roles: OPERATIONAL_ROLES,
           children: [
             { menu: 'Plot Purchase', link: '/dashboard/plots/purchase', roles: OPERATIONAL_ROLES, resource: ['plot_purchase', 'plot_inventory'] },
+            { menu: 'Land Seller', link: '/dashboard/plots/sellers', roles: OPERATIONAL_ROLES, resource: ['kisan_seller', 'kisan_ledger', 'plot_purchase', 'plot_inventory'] },
             { menu: 'Purchasers / Buyers', link: '/dashboard/plots/purchasers', roles: OPERATIONAL_ROLES, resource: ['purchasers_master', 'plot_purchase', 'plot_inventory'] },
           ],
         },
@@ -169,6 +170,7 @@ export const getSidebarMenuConfig = ({ role, company, user }) => {
           children: [
             { menu: 'Series & Inventory', link: '/dashboard/plots/series-master', roles: OPERATIONAL_ROLES, resource: 'plot_inventory' },
             { menu: 'Plot Products', link: '/dashboard/plots/products', roles: OPERATIONAL_ROLES, resource: 'plot_inventory' },
+            { menu: 'Plan & Rates', link: '/dashboard/plots/plan-rates', roles: OPERATIONAL_ROLES, resource: 'plot_inventory' },
           ],
         },
         { menu: 'Holiday', link: '/dashboard/holiday', icon: <CalendarDays size={20} />, roles: OPERATIONAL_ROLES, resource: 'holiday' },

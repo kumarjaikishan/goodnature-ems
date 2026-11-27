@@ -152,10 +152,11 @@ const Adminleave = () => {
                     to: dayjs(leave.toDate).format('DD MMM, YYYY'),
                     reason: leave.reason,
                     status: (
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                            leave.status === 'approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                            (leave.status === 'rejected' ? "bg-rose-100 text-rose-800 border border-rose-200" :
-                                "bg-amber-100 text-amber-800 border border-amber-200")}`}>
+                        <span className={`text-xs font-medium capitalize ${
+                            leave.status === 'approved' ? 'text-emerald-700' :
+                            leave.status === 'rejected' ? 'text-rose-700' :
+                            'text-amber-700'
+                        }`}>
                             {leave.status}
                         </span>
                     ),
@@ -199,7 +200,7 @@ const Adminleave = () => {
     }, [rawLeaves]);
 
     return (
-        <div className='max-w-6xl mx-auto space-y-4'>
+        <div className='p-4 md:p-6 max-w-7xl mx-auto space-y-4'>
             {/* Filter Bar */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-end gap-2.5 flex-wrap flex-1">

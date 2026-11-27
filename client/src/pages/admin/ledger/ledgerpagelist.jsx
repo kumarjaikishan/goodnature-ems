@@ -83,8 +83,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         fetchLedgers();
     }, [category]);
 
+    const isPureBranchLedger = (l) =>
+        l?.ledgerType === 'branch' || (Boolean(l?.branchId) && !l?.employeeId && !l?.sponsorId && !l?.kisanSellerId);
+
     const getSponsorTier = (l) => {
-        if (l.ledgerType === 'branch' || Boolean(l.branchId)) {
+        if (isPureBranchLedger(l)) {
             return 'branch';
         }
         const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
@@ -130,7 +133,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         if (!ledgers || ledgers.length === 0) return [];
         if (!category || category === "all") return ledgers;
         return ledgers.filter((l) => {
-            const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+            const isBranch = isPureBranchLedger(l);
             const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
             const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
             const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
@@ -164,7 +167,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         // 2. Ledger Type Filter (when category is all)
         if (category === "all" && typeFilter !== "all") {
             result = result.filter((l) => {
-                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+                const isBranch = isPureBranchLedger(l);
                 const isUserCash = l.ledgerType === 'user_cash' || l.ledgerType === 'bank' || l.ledgerType === 'cash';
                 const isEmployee = (l.ledgerType === 'employee' || Boolean(l.employeeId)) && !isUserCash;
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
@@ -581,7 +584,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                         <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {paginatedLedgers.map((l, ind) => {
-                                const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+                                const isBranch = isPureBranchLedger(l);
+                                const avatarSrc = l.profileImage || l.employeeId?.profileimage || l.sponsorId?.photo || l.sponsorId?.profileImage;
                                 const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                 const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
                                 const sponsorTier = getSponsorTier(l);
@@ -631,11 +635,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                 <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shrink-0 shadow-xs">
                                                     <Building2 className="w-5 h-5 text-teal-700" />
                                                 </div>
-                                            ) : l.profileImage ? (
+                                            ) : avatarSrc ? (
                                                 <img
                                                     className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
                                                     alt={l.name}
-                                                    src={cloudinaryUrl(l.profileImage, {
+                                                    src={cloudinaryUrl(avatarSrc, {
                                                         format: "webp",
                                                         width: 100,
                                                         height: 100,
@@ -801,7 +805,8 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                 </thead>
                                 <tbody className="bg-white divide-y divide-slate-100">
                                     {paginatedLedgers.map((l, ind) => {
-                                        const isBranch = l.ledgerType === 'branch' || Boolean(l.branchId);
+                                        const isBranch = isPureBranchLedger(l);
+                                        const avatarSrc = l.profileImage || l.employeeId?.profileimage || l.sponsorId?.photo || l.sponsorId?.profileImage;
                                         const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
                                         const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
                                         const sponsorTier = getSponsorTier(l);
@@ -849,11 +854,11 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                         <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shadow-xs">
                                                             <Building2 className="w-4 h-4 text-teal-700" />
                                                         </div>
-                                                    ) : l.profileImage ? (
+                                                    ) : avatarSrc ? (
                                                         <img
                                                             className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"
                                                             alt={l.name}
-                                                            src={cloudinaryUrl(l.profileImage, {
+                                                            src={cloudinaryUrl(avatarSrc, {
                                                                 format: "webp",
                                                                 width: 100,
                                                                 height: 100,

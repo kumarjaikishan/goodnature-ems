@@ -277,7 +277,7 @@ export default function SuperAdminDashboard() {
                     <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
                         {hasActiveFilters
                             ? "No accounts match the selected filters. Try clearing your search or filter options."
-                            : "Click '+ Add System User / Operator' above to register your first administrative account."}
+                            : "Click 'Add User' above to register your first administrative account."}
                     </p>
                 </div>
             ) : viewMode === "grid" ? (

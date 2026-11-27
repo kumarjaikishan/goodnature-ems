@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { CreditCard, Eye, Search, UserCheck, Users, X } from 'lucide-react';
+import { CreditCard, Eye, Search, X } from 'lucide-react';
 import DataTable from '@/components/common/DataTable';
 import Modalbox from '@/components/custommodal/Modalbox';
 import Button from '@/components/ui/Button';
@@ -333,21 +333,6 @@ const DirectPayPage = ({ mode = 'employee' }) => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-            {isEmployeeMode ? <UserCheck size={22} className="text-teal-700" /> : <Users size={22} className="text-teal-700" />}
-            {isEmployeeMode ? 'Employee Pay' : 'Seller Pay'}
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {isEmployeeMode
-              ? 'Direct payment to employees — immediately pays and generates an approved Paid voucher.'
-              : 'Direct payment to sellers / kisans — immediately pays and generates an approved Paid voucher.'}
-          </p>
-        </div>
-      </div>
-
       {/* Summary Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs">
@@ -449,8 +434,7 @@ const DirectPayPage = ({ mode = 'employee' }) => {
       <Modalbox
         open={openPayModal}
         onClose={() => !submitting && setOpenPayModal(false)}
-        title={selectedLedger ? `Direct Pay: ${selectedLedger.name}` : 'Direct Payment'}
-        subtitle="Immediate disbursement — generates an auto-approved Paid voucher"
+        title={selectedLedger ? `Pay: ${selectedLedger.name}` : 'Payment'}
         size="xl"
         footer={
           <>
