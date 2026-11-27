@@ -144,25 +144,27 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
         >
             <form onSubmit={submitHandle} className="space-y-4">
                 <div className="space-y-3">
-                    <Select
-                        size="sm"
-                        label="Action Type"
-                        required
-                        value={isPunchIn}
-                        onChange={(e) => setisPunchIn(e.target.value === 'true' || e.target.value === true)}
-                        options={[
-                            { value: true, label: "Punch In (Check-in)" },
-                            { value: false, label: "Punch Out (Check-out)" }
-                        ]}
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Select
+                            size="sm"
+                            label="Action Type"
+                            required
+                            value={isPunchIn}
+                            onChange={(e) => setisPunchIn(e.target.value === 'true' || e.target.value === true)}
+                            options={[
+                                { value: true, label: "Punch In (Check-in)" },
+                                { value: false, label: "Punch Out (Check-out)" }
+                            ]}
+                        />
 
-                    <DateInput
-                        size="sm"
-                        label="Attendance Date"
-                        required
-                        disabled
-                        value={dayjs().format('YYYY-MM-DD')}
-                    />
+                        <DateInput
+                            size="sm"
+                            label="Attendance Date"
+                            required
+                            disabled
+                            value={dayjs().format('YYYY-MM-DD')}
+                        />
+                    </div>
 
                     {/* Custom Searchable Employee Picker */}
                     <div className="relative">
