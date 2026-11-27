@@ -697,17 +697,19 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                                     >
                                                         <Eye size={14} /> View Statement
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenuId(null);
-                                                            handleOpenPayModal(l);
-                                                        }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
-                                                    </button>
+                                                    {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenuId(null);
+                                                                handleOpenPayModal(l);
+                                                            }}
+                                                            className="w-full text-left px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                                                        >
+                                                            <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
+                                                        </button>
+                                                    )}
                                                     {canEditLedger && (
                                                         <button
                                                             type="button"
@@ -905,15 +907,17 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                             </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center justify-center gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        title="Pay / Create Voucher"
-                                                        onClick={() => handleOpenPayModal(l)}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
-                                                    >
-                                                        <CreditCard size={13} />
-                                                        <span>Pay</span>
-                                                    </button>
+                                                    {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
+                                                        <button
+                                                            type="button"
+                                                            title="Pay / Create Voucher"
+                                                            onClick={() => handleOpenPayModal(l)}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
+                                                        >
+                                                            <CreditCard size={13} />
+                                                            <span>Pay</span>
+                                                        </button>
+                                                    )}
                                                     <button
                                                         type="button"
                                                         title="View Ledger Statement"

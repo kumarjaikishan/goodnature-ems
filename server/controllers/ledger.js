@@ -526,12 +526,6 @@ const ledger = async (req, res) => {
     const forceSync = req.query.sync === 'true';
     if (forceSync) {
       await syncAllLedgersSafe(true);
-    } else {
-      const now = Date.now();
-      if ((lastLedgerSyncTime === 0 || now - lastLedgerSyncTime >= LEDGER_SYNC_INTERVAL_MS) && !isLedgerSyncing) {
-        // Run periodic sync asynchronously in background so GET requests never stall
-        syncAllLedgersSafe(false).catch(syncErr => console.error("Auto ledger sync failed:", syncErr.message));
-      }
     }
 
     const { view } = req.query;
@@ -736,12 +730,6 @@ const getTreasuryLedgers = async (req, res) => {
     const forceSync = req.query?.sync === 'true';
     if (forceSync) {
       await syncAllLedgersSafe(true);
-    } else {
-      const now = Date.now();
-      if ((lastLedgerSyncTime === 0 || now - lastLedgerSyncTime >= LEDGER_SYNC_INTERVAL_MS) && !isLedgerSyncing) {
-        // Run periodic sync asynchronously in background so GET requests never stall
-        syncAllLedgersSafe(false).catch(syncErr => console.error("Auto ledger sync failed:", syncErr.message));
-      }
     }
 
     const ledgers = await Ledger.find({
