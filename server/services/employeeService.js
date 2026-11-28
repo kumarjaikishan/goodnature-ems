@@ -75,7 +75,9 @@ class EmployeeService {
             _id: ledgerObjectId,
             name: employeeName,
             employeeId: employeeObjectId,
-            profileImage: file?.secure_url
+            empId: employeeData.empId,
+            profileImage: file?.secure_url,
+            ledgerType: 'employee'
         });
         await ledger.save({ session });
 

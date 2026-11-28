@@ -33,12 +33,13 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
     const [sortBy, setSortBy] = useState("name_asc");
     const showTypeColumn = category !== 'employee' && category !== 'seller' && category !== 'kisan';
     const navigate = useNavigate();
-    
+
     const profile = useSelector((state) => state.user?.profile);
     const isSuperAdmin = ['superadmin', 'grant', 'developer'].includes(profile?.role?.toLowerCase());
+    const isEntityLedgerCategory = ['employee', 'seller', 'kisan', 'branch_partner', 'partner', 'associate'].includes(category);
     const canCreateLedger = isSuperAdmin || hasPermission(profile, 'ledger', 2);
-    const canEditLedger = isSuperAdmin || hasPermission(profile, 'ledger', 3) || hasPermission(profile, 'commission_ledger_action', 3);
-    const canDeleteLedger = isSuperAdmin || hasPermission(profile, 'ledger', 4) || hasPermission(profile, 'commission_ledger_action', 4);
+    const canEditLedger = !isEntityLedgerCategory && (isSuperAdmin || hasPermission(profile, 'ledger', 3) || hasPermission(profile, 'commission_ledger_action', 3));
+    const canDeleteLedger = !isEntityLedgerCategory && (isSuperAdmin || hasPermission(profile, 'ledger', 4) || hasPermission(profile, 'commission_ledger_action', 4));
     const [editLedgerId, setEditLedgerId] = useState(null);
     const [editLedgerName, setEditLedgerName] = useState("");
     const [editOpen, setEditOpen] = useState(false);
@@ -157,7 +158,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
         // 1. Search query filter (name or empId or seller PAN)
         if (searchQuery.trim() !== "") {
             const lower = searchQuery.toLowerCase().trim();
-            result = result.filter((l) => 
+            result = result.filter((l) =>
                 (l.name && l.name.toLowerCase().includes(lower)) ||
                 (l.empId && String(l.empId).toLowerCase().includes(lower)) ||
                 (l.kisanSellerId?.panNumber && String(l.kisanSellerId.panNumber).toLowerCase().includes(lower))
@@ -173,7 +174,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 const isKisan = l.ledgerType === 'kisan' || Boolean(l.kisanSellerId);
                 const isSponsor = l.ledgerType === 'sponsor' || Boolean(l.sponsorId);
                 const tier = getSponsorTier(l);
-                
+
                 if (typeFilter === 'employee') return isEmployee && !isSponsor && !isKisan;
                 if (typeFilter === 'seller' || typeFilter === 'kisan') return isKisan;
                 if (typeFilter === 'partner') return tier === 'partner';
@@ -312,7 +313,7 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
             if (ledgerItem.empId) {
                 url += `&empid=${encodeURIComponent(ledgerItem.empId)}`;
             }
-            
+
             // Prioritize current category if viewing from a specific subcategory page
             let itemType = category && category !== 'all' ? category : null;
             if (!itemType) {
@@ -399,31 +400,26 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 </div>
 
                 {/* Net Balance Card */}
-                <div className={`relative overflow-hidden bg-gradient-to-br border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between ${
-                    netBalance >= 0 
-                        ? 'from-teal-50/70 to-white border-teal-100' 
-                        : 'from-amber-50/70 to-white border-amber-100'
-                }`}>
+                <div className={`relative overflow-hidden bg-gradient-to-br border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between ${netBalance >= 0
+                    ? 'from-teal-50/70 to-white border-teal-100'
+                    : 'from-amber-50/70 to-white border-amber-100'
+                    }`}>
                     <div className="flex flex-col">
-                        <span className={`text-[11px] font-bold uppercase tracking-widest ${
-                            netBalance >= 0 ? 'text-teal-800' : 'text-amber-800'
-                        }`}>
+                        <span className={`text-[11px] font-bold uppercase tracking-widest ${netBalance >= 0 ? 'text-teal-800' : 'text-amber-800'
+                            }`}>
                             {netBalance >= 0 ? 'Net Payable' : 'Net Receivable'}
                         </span>
-                        <span className={`text-xs font-medium mt-0.5 ${
-                            netBalance >= 0 ? 'text-teal-600/80' : 'text-amber-600/80'
-                        }`}>
+                        <span className={`text-xs font-medium mt-0.5 ${netBalance >= 0 ? 'text-teal-600/80' : 'text-amber-600/80'
+                            }`}>
                             {netBalance >= 0 ? 'Net Balance to Pay' : 'Net Balance to Receive'}
                         </span>
-                        <span className={`text-2xl font-black mt-2 ${
-                            netBalance >= 0 ? 'text-teal-950' : 'text-amber-950'
-                        }`}>
+                        <span className={`text-2xl font-black mt-2 ${netBalance >= 0 ? 'text-teal-950' : 'text-amber-950'
+                            }`}>
                             ₹ {Math.abs(netBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
-                    <div className={`p-3 rounded-xl ${
-                        netBalance >= 0 ? 'bg-teal-100/60 text-teal-700' : 'bg-amber-100/60 text-amber-700'
-                    }`}>
+                    <div className={`p-3 rounded-xl ${netBalance >= 0 ? 'bg-teal-100/60 text-teal-700' : 'bg-amber-100/60 text-amber-700'
+                        }`}>
                         <Scale className="w-6 h-6" />
                     </div>
                 </div>
@@ -453,11 +449,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                     localStorage.setItem(`ledgerViewType_${category}`, 'card');
                                     localStorage.setItem('ledgerViewType', 'card');
                                 }}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                                    viewType === 'card'
-                                        ? 'bg-teal-700 text-white shadow-xs'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                                }`}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${viewType === 'card'
+                                    ? 'bg-teal-700 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                                    }`}
                             >
                                 <LayoutGrid className="w-3.5 h-3.5" />
                                 Card
@@ -469,11 +464,10 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                     localStorage.setItem(`ledgerViewType_${category}`, 'table');
                                     localStorage.setItem('ledgerViewType', 'table');
                                 }}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                                    viewType === 'table'
-                                        ? 'bg-teal-700 text-white shadow-xs'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                                }`}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${viewType === 'table'
+                                    ? 'bg-teal-700 text-white shadow-xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                                    }`}
                             >
                                 <Table className="w-3.5 h-3.5" />
                                 Table
@@ -582,202 +576,198 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                 <div className="w-full">
                     {viewType === 'card' ? (
                         <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {paginatedLedgers.map((l, ind) => {
-                                const isBranch = isPureBranchLedger(l);
-                                const avatarSrc = l.profileImage || l.employeeId?.profileimage || l.sponsorId?.photo || l.sponsorId?.profileImage;
-                                const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
-                                const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
-                                const sponsorTier = getSponsorTier(l);
-                                const isBranchPartner = isBranch || sponsorTier === 'branch_partner';
-                                const isAssociate = sponsorTier === 'associate';
-                                const isPartner = sponsorTier === 'partner';
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {paginatedLedgers.map((l, ind) => {
+                                    const isBranch = isPureBranchLedger(l);
+                                    const avatarSrc = l.profileImage || l.employeeId?.profileimage || l.sponsorId?.photo || l.sponsorId?.profileImage;
+                                    const isEmp = !isBranch && (l.ledgerType === 'employee' || Boolean(l.employeeId));
+                                    const isKisan = !isBranch && (l.ledgerType === 'kisan' || Boolean(l.kisanSellerId));
+                                    const sponsorTier = getSponsorTier(l);
+                                    const isBranchPartner = isBranch || sponsorTier === 'branch_partner';
+                                    const isAssociate = sponsorTier === 'associate';
+                                    const isPartner = sponsorTier === 'partner';
 
-                                const tagLabel = isBranch
-                                    ? 'Branch Partner'
-                                    : isEmp
-                                    ? 'Employee'
-                                    : isKisan
-                                    ? 'Seller'
-                                    : isBranchPartner
-                                    ? 'Branch Partner'
-                                    : isAssociate
-                                    ? 'Associate'
-                                    : isPartner
-                                    ? 'Business Partner'
-                                    : (l.ledgerType || 'Custom');
+                                    const tagLabel = isBranch
+                                        ? 'Branch Partner'
+                                        : isEmp
+                                            ? 'Employee'
+                                            : isKisan
+                                                ? 'Seller'
+                                                : isBranchPartner
+                                                    ? 'Branch Partner'
+                                                    : isAssociate
+                                                        ? 'Associate'
+                                                        : isPartner
+                                                            ? 'Business Partner'
+                                                            : (l.ledgerType || 'Custom');
 
-                                const tagClass = isBranch
-                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                                    : isEmp
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                    : isKisan
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                    : isBranchPartner
-                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                                    : isAssociate
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                    : isPartner
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                    : 'bg-slate-50 text-slate-700 border border-slate-200';
+                                    const tagClass = isBranch
+                                        ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                        : isEmp
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                            : isKisan
+                                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                : isBranchPartner
+                                                    ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                                    : isAssociate
+                                                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                        : isPartner
+                                                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                                            : 'bg-slate-50 text-slate-700 border border-slate-200';
 
-                                return (
-                                <div
-                                    key={ind}
-                                    onClick={() => handleNavigate(l)}
-                                    className={`relative cursor-pointer rounded-xl border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all p-3.5 bg-white flex flex-col justify-between h-[125px] ${
-                                        activeMenuId === l._id ? 'z-30 ring-1 ring-teal-500/20' : 'z-0'
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex gap-2.5 items-center">
-                                            {isBranch ? (
-                                                <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shrink-0 shadow-xs">
-                                                    <Building2 className="w-5 h-5 text-teal-700" />
-                                                </div>
-                                            ) : avatarSrc ? (
-                                                <img
-                                                    className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
-                                                    alt={l.name}
-                                                    src={cloudinaryUrl(avatarSrc, {
-                                                        format: "webp",
-                                                        width: 100,
-                                                        height: 100,
-                                                    })}
-                                                />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200 shrink-0">
-                                                    {l.name?.charAt(0)?.toUpperCase() || 'L'}
-                                                </div>
-                                            )}
-
-                                            <div className="flex flex-col gap-0.5 min-w-0">
-                                                <div className="text-xs font-bold text-slate-800 capitalize leading-tight truncate">
-                                                    {l.name}
-                                                </div>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tagClass}`}>
-                                                        {tagLabel}
-                                                    </span>
-                                                    {isKisan ? (
-                                                        (l.kisanSellerId?.panNumber || l.empId) && (
-                                                            <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100 uppercase">
-                                                                PAN: {l.kisanSellerId?.panNumber || l.empId}
-                                                            </span>
-                                                        )
+                                    return (
+                                        <div
+                                            key={ind}
+                                            onClick={() => handleNavigate(l)}
+                                            className={`relative cursor-pointer rounded-xl border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all p-3.5 bg-white flex flex-col justify-between h-[125px] ${activeMenuId === l._id ? 'z-30 ring-1 ring-teal-500/20' : 'z-0'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex gap-2.5 items-center">
+                                                    {isBranch ? (
+                                                        <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shrink-0 shadow-xs">
+                                                            <Building2 className="w-5 h-5 text-teal-700" />
+                                                        </div>
+                                                    ) : avatarSrc ? (
+                                                        <img
+                                                            className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                                                            alt={l.name}
+                                                            src={cloudinaryUrl(avatarSrc, {
+                                                                format: "webp",
+                                                                width: 100,
+                                                                height: 100,
+                                                            })}
+                                                        />
                                                     ) : (
-                                                        l.empId && (
-                                                            <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
-                                                                ID: {l.empId}
-                                                            </span>
-                                                        )
+                                                        <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200 shrink-0">
+                                                            {l.name?.charAt(0)?.toUpperCase() || 'L'}
+                                                        </div>
                                                     )}
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        {/* Dropdown Action Menu */}
-                                        <div className="relative shrink-0" ref={activeMenuId === l._id ? menuRef : null}>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveMenuId(activeMenuId === l._id ? null : l._id);
-                                                }}
-                                                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                                            >
-                                                <MoreVertical size={16} />
-                                            </button>
-                                            {activeMenuId === l._id && (
-                                                <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                    <div className="flex flex-col gap-0.5 min-w-0">
+                                                        <div className="text-xs font-bold text-slate-800 capitalize leading-tight truncate">
+                                                            {l.name}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${tagClass}`}>
+                                                                {tagLabel}
+                                                            </span>
+                                                            {isKisan ? (
+                                                                (l.kisanSellerId?.panNumber || l.empId) && (
+                                                                    <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100 uppercase">
+                                                                        PAN: {l.kisanSellerId?.panNumber || l.empId}
+                                                                    </span>
+                                                                )
+                                                            ) : (
+                                                                l.empId && (
+                                                                    <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1 py-0.5 rounded border border-slate-100">
+                                                                        ID: {l.empId}
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Dropdown Action Menu */}
+                                                <div className="relative shrink-0" ref={activeMenuId === l._id ? menuRef : null}>
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setActiveMenuId(null);
-                                                            handleNavigate(l);
+                                                            setActiveMenuId(activeMenuId === l._id ? null : l._id);
                                                         }}
-                                                        className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                                                     >
-                                                        <Eye size={14} /> View Statement
+                                                        <MoreVertical size={16} />
                                                     </button>
-                                                    {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveMenuId(null);
-                                                                handleOpenPayModal(l);
-                                                            }}
-                                                            className="w-full text-left px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
-                                                        >
-                                                            <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
-                                                        </button>
-                                                    )}
-                                                    {canEditLedger && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveMenuId(null);
-                                                                handleOpenLedgerDialog(l);
-                                                            }}
-                                                            className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                                                        >
-                                                            <Edit2 size={14} /> Edit
-                                                        </button>
-                                                    )}
-                                                    {canDeleteLedger && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveMenuId(null);
-                                                                deleteLedger(l);
-                                                            }}
-                                                            className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                                                        >
-                                                            <Trash2 size={14} /> Delete
-                                                        </button>
+                                                    {activeMenuId === l._id && (
+                                                        <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveMenuId(null);
+                                                                    handleNavigate(l);
+                                                                }}
+                                                                className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                                            >
+                                                                <Eye size={14} /> View Statement
+                                                            </button>
+                                                            {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveMenuId(null);
+                                                                        handleOpenPayModal(l);
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer"
+                                                                >
+                                                                    <CreditCard size={14} className="text-emerald-600" /> Pay / Voucher
+                                                                </button>
+                                                            )}
+                                                            {canEditLedger && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveMenuId(null);
+                                                                        handleOpenLedgerDialog(l);
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                                                >
+                                                                    <Edit2 size={14} /> Edit
+                                                                </button>
+                                                            )}
+                                                            {canDeleteLedger && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveMenuId(null);
+                                                                        deleteLedger(l);
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                                                                >
+                                                                    <Trash2 size={14} /> Delete
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )}
+                                            </div>
+
+                                            {/* Balance */}
+                                            <div className="flex justify-between items-end mt-auto">
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
+                                                    }`}>
+                                                    {l.netBalance >= 0 ? 'Payable' : 'Receivable'}
+                                                </span>
+                                                <p className={`text-base font-bold leading-none ${l.netBalance >= 0 ? "text-emerald-600" : "text-rose-600"
+                                                    }`}>
+                                                    ₹ {Math.abs(l.netBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </p>
+                                            </div>
+
+                                            {/* Left Accent Bar */}
+                                            <span className={`w-[4px] h-full absolute left-0 top-0 rounded-l-xl ${l.netBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
+                                                }`}></span>
                                         </div>
-                                    </div>
-
-                                    {/* Balance */}
-                                    <div className="flex justify-between items-end mt-auto">
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                                            l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
-                                        }`}>
-                                            {l.netBalance >= 0 ? 'Payable' : 'Receivable'}
-                                        </span>
-                                        <p className={`text-base font-bold leading-none ${
-                                            l.netBalance >= 0 ? "text-emerald-600" : "text-rose-600"
-                                        }`}>
-                                            ₹ {Math.abs(l.netBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </p>
-                                    </div>
-
-                                    {/* Left Accent Bar */}
-                                    <span className={`w-[4px] h-full absolute left-0 top-0 rounded-l-xl ${
-                                        l.netBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500'
-                                    }`}></span>
-                                </div>
-                                );
-                            })}
-                        </div>
-                        {filteredLedgers.length > 0 && (
-                            <div className="mt-4 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                                <TablePagination
-                                    currentPage={currentPage}
-                                    totalItems={filteredLedgers.length}
-                                    rowsPerPage={rowsPerPage}
-                                    onPageChange={setCurrentPage}
-                                    onRowsPerPageChange={setRowsPerPage}
-                                />
+                                    );
+                                })}
                             </div>
-                        )}
+                            {filteredLedgers.length > 0 && (
+                                <div className="mt-4 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                                    <TablePagination
+                                        currentPage={currentPage}
+                                        totalItems={filteredLedgers.length}
+                                        rowsPerPage={rowsPerPage}
+                                        onPageChange={setCurrentPage}
+                                        onRowsPerPageChange={setRowsPerPage}
+                                    />
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="w-full overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
@@ -817,145 +807,143 @@ const LedgerListPage = ({ category = "all", defaultView = "table" }) => {
                                         const tagLabel = isBranch
                                             ? 'Branch Partner'
                                             : isEmp
-                                            ? 'Employee'
-                                            : isKisan
-                                            ? 'Seller'
-                                            : isBranchPartner
-                                            ? 'Branch Partner'
-                                            : isAssociate
-                                            ? 'Associate'
-                                            : isPartner
-                                            ? 'Business Partner'
-                                            : (l.ledgerType || 'Custom');
+                                                ? 'Employee'
+                                                : isKisan
+                                                    ? 'Seller'
+                                                    : isBranchPartner
+                                                        ? 'Branch Partner'
+                                                        : isAssociate
+                                                            ? 'Associate'
+                                                            : isPartner
+                                                                ? 'Business Partner'
+                                                                : (l.ledgerType || 'Custom');
 
                                         const tagClass = isBranch
                                             ? 'bg-teal-50 text-teal-800 border border-teal-200'
                                             : isEmp
-                                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                            : isKisan
-                                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                            : isBranchPartner
-                                            ? 'bg-teal-50 text-teal-800 border border-teal-200'
-                                            : isAssociate
-                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                            : isPartner
-                                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                            : 'bg-slate-50 text-slate-700 border border-slate-200';
+                                                ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                : isKisan
+                                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                    : isBranchPartner
+                                                        ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                                                        : isAssociate
+                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                            : isPartner
+                                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                                                : 'bg-slate-50 text-slate-700 border border-slate-200';
 
                                         return (
-                                        <tr 
-                                            key={ind} 
-                                            onClick={() => handleNavigate(l)}
-                                            className="hover:bg-slate-50/80 cursor-pointer transition-colors"
-                                        >
-                                            <td className="px-6 py-3.5 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    {isBranch ? (
-                                                        <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shadow-xs">
-                                                            <Building2 className="w-4 h-4 text-teal-700" />
-                                                        </div>
-                                                    ) : avatarSrc ? (
-                                                        <img
-                                                            className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"
-                                                            alt={l.name}
-                                                            src={cloudinaryUrl(avatarSrc, {
-                                                                format: "webp",
-                                                                width: 100,
-                                                                height: 100,
-                                                            })}
-                                                        />
-                                                    ) : (
-                                                        <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200">
-                                                            {l.name?.charAt(0)?.toUpperCase() || 'L'}
-                                                        </div>
-                                                    )}
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-slate-800 capitalize leading-tight">
-                                                            {l.name}
-                                                        </span>
-                                                        {isKisan ? (
-                                                            (l.kisanSellerId?.panNumber || l.empId) && (
-                                                                <span className="text-[11px] text-slate-400 font-medium mt-0.5 uppercase">
-                                                                    PAN: {l.kisanSellerId?.panNumber || l.empId}
-                                                                </span>
-                                                            )
-                                                        ) : (
-                                                            l.empId && (
-                                                                <span className="text-[11px] text-slate-400 font-medium mt-0.5">
-                                                                    ID: {l.empId}
-                                                                </span>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            {showTypeColumn && (
+                                            <tr
+                                                key={ind}
+                                                onClick={() => handleNavigate(l)}
+                                                className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                                            >
                                                 <td className="px-6 py-3.5 whitespace-nowrap">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
-                                                        {tagLabel}
+                                                    <div className="flex items-center gap-3">
+                                                        {isBranch ? (
+                                                            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-800 font-bold flex items-center justify-center border border-teal-200 shadow-xs">
+                                                                <Building2 className="w-4 h-4 text-teal-700" />
+                                                            </div>
+                                                        ) : avatarSrc ? (
+                                                            <img
+                                                                className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"
+                                                                alt={l.name}
+                                                                src={cloudinaryUrl(avatarSrc, {
+                                                                    format: "webp",
+                                                                    width: 100,
+                                                                    height: 100,
+                                                                })}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-xs border border-teal-200">
+                                                                {l.name?.charAt(0)?.toUpperCase() || 'L'}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-slate-800 capitalize leading-tight">
+                                                                {l.name}
+                                                            </span>
+                                                            {isKisan ? (
+                                                                (l.kisanSellerId?.panNumber || l.empId) && (
+                                                                    <span className="text-[11px] text-slate-400 font-medium mt-0.5 uppercase">
+                                                                        PAN: {l.kisanSellerId?.panNumber || l.empId}
+                                                                    </span>
+                                                                )
+                                                            ) : (
+                                                                l.empId && (
+                                                                    <span className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                                                        ID: {l.empId}
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                {showTypeColumn && (
+                                                    <td className="px-6 py-3.5 whitespace-nowrap">
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${tagClass}`}>
+                                                            {tagLabel}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                <td className="px-6 py-3.5 whitespace-nowrap">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
+                                                        }`}>
+                                                        {l.netBalance >= 0 ? 'Payable' : 'Receivable'}
                                                     </span>
                                                 </td>
-                                            )}
-                                            <td className="px-6 py-3.5 whitespace-nowrap">
-                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                                                    l.netBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
-                                                }`}>
-                                                    {l.netBalance >= 0 ? 'Payable' : 'Receivable'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-right">
-                                                <span className={`text-xs font-bold ${
-                                                    l.netBalance >= 0 ? "text-emerald-600" : "text-rose-600"
-                                                }`}>
-                                                    ₹ {Math.abs(l.netBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
+                                                <td className="px-6 py-3.5 whitespace-nowrap text-right">
+                                                    <span className={`text-xs font-bold ${l.netBalance >= 0 ? "text-emerald-600" : "text-rose-600"
+                                                        }`}>
+                                                        ₹ {Math.abs(l.netBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        {category !== 'employee' && category !== 'seller' && category !== 'kisan' && (
+                                                            <button
+                                                                type="button"
+                                                                title="Pay / Create Voucher"
+                                                                onClick={() => handleOpenPayModal(l)}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
+                                                            >
+                                                                <CreditCard size={13} />
+                                                                <span>Pay</span>
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
-                                                            title="Pay / Create Voucher"
-                                                            onClick={() => handleOpenPayModal(l)}
-                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-900 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
+                                                            title="View Ledger Statement"
+                                                            onClick={() => handleNavigate(l)}
+                                                            className="p-1.5 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 hover:text-teal-900 border border-teal-200 transition-colors cursor-pointer"
                                                         >
-                                                            <CreditCard size={13} />
-                                                            <span>Pay</span>
+                                                            <Eye size={14} />
                                                         </button>
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        title="View Ledger Statement"
-                                                        onClick={() => handleNavigate(l)}
-                                                        className="p-1.5 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 hover:text-teal-900 border border-teal-200 transition-colors cursor-pointer"
-                                                    >
-                                                        <Eye size={14} />
-                                                    </button>
-                                                    {canEditLedger && (
-                                                        <button
-                                                            type="button"
-                                                            title="Edit Ledger"
-                                                            onClick={() => handleOpenLedgerDialog(l)}
-                                                            className="p-1.5 rounded-lg text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
-                                                        >
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                    )}
-                                                    {canDeleteLedger && (
-                                                        <button
-                                                            type="button"
-                                                            title="Delete Ledger"
-                                                            onClick={() => deleteLedger(l)}
-                                                            className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 transition-colors cursor-pointer"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                        {canEditLedger && (
+                                                            <button
+                                                                type="button"
+                                                                title="Edit Ledger"
+                                                                onClick={() => handleOpenLedgerDialog(l)}
+                                                                className="p-1.5 rounded-lg text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 transition-colors cursor-pointer"
+                                                            >
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                        )}
+                                                        {canDeleteLedger && (
+                                                            <button
+                                                                type="button"
+                                                                title="Delete Ledger"
+                                                                onClick={() => deleteLedger(l)}
+                                                                className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                             {filteredLedgers.length > 0 && (

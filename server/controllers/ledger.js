@@ -83,7 +83,12 @@ const createLedgerForEmployee = async () => {
     });
 
     for (const emp of employees) {
-      const q = Ledger.findOne({ employeeId: emp._id });
+      const q = Ledger.findOne({
+        $or: [
+          { employeeId: emp._id },
+          ...(emp.ledgerId ? [{ _id: emp.ledgerId }] : [])
+        ]
+      });
       if (session) q.session(session);
       let ledger = await q;
       
@@ -91,6 +96,7 @@ const createLedgerForEmployee = async () => {
         const [newLedger] = await Ledger.create(
           [
             {
+              ...(emp.ledgerId ? { _id: emp.ledgerId } : {}),
               name: emp?.employeeName || emp?.userid?.name || "Unknown",
               employeeId: emp._id,
               empId: emp.empId,
@@ -103,6 +109,10 @@ const createLedgerForEmployee = async () => {
         ledger = newLedger;
       } else {
         let updated = false;
+        if (!ledger.employeeId || ledger.employeeId.toString() !== emp._id.toString()) {
+          ledger.employeeId = emp._id;
+          updated = true;
+        }
         if (ledger.empId !== emp.empId) { ledger.empId = emp.empId; updated = true; }
         if (ledger.ledgerType !== 'employee') { ledger.ledgerType = 'employee'; updated = true; }
         if (updated) await ledger.save(session ? { session } : {});
@@ -526,6 +536,14 @@ const ledger = async (req, res) => {
     const forceSync = req.query.sync === 'true';
     if (forceSync) {
       await syncAllLedgersSafe(true);
+    } else {
+      const [activeEmpCount, empLedgerCount] = await Promise.all([
+        employee.countDocuments({ status: true }),
+        Ledger.countDocuments({ ledgerType: 'employee' })
+      ]);
+      if (activeEmpCount > empLedgerCount) {
+        await createLedgerForEmployee();
+      }
     }
 
     const { view } = req.query;
@@ -1215,6 +1233,20 @@ const deleteLedger = async (req, res) => {
     const ledger = await Ledger.findById(id);
     if (!ledger) {
       return res.status(404).json({ message: "Ledger not found" });
+    }
+
+    const protectedTypes = ['employee', 'sponsor', 'kisan', 'branch', 'user_cash', 'bank'];
+    if (protectedTypes.includes(ledger.ledgerType) || ledger.employeeId || ledger.sponsorId || ledger.kisanSellerId || ledger.branchId) {
+      return res.status(400).json({
+        message: `System-linked ${ledger.ledgerType || 'entity'} ledgers cannot be deleted.`
+      });
+    }
+
+    const existingEntryCount = await Entry.countDocuments({ ledgerId: id });
+    if (existingEntryCount > 0) {
+      return res.status(400).json({
+        message: `Cannot delete ledger with ${existingEntryCount} existing transaction entry(s).`
+      });
     }
 
     // Special Protection: Delete option is restricted to Superadmin or IDs explicitly authorized by Superadmin

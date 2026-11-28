@@ -55,7 +55,7 @@ const Attandence = () => {
   const [totalRows, setTotalRows] = useState(0);
   const [pageLoading, setPageLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage, setPerPage] = useState(10);
   const [refreshTick, setRefreshTick] = useState(0);
 
   // Bump this after any mutation (mark/edit/delete) or SSE live event to refetch just the
