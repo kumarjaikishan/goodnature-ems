@@ -2,6 +2,7 @@ import React, { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoutes from '../utils/protectedRoute';
 import RoutePermissionGuard from '../utils/RoutePermissionGuard';
+import { MANAGEMENT_ROLES } from '../utils/auth';
 
 // 🔹 Lazy imports scoped exclusively to Operational / Management roles
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'));
@@ -80,38 +81,23 @@ const PlotBookingEditPage = lazy(() => import('../pages/plots/booking/PlotBookin
 const PlotBookingLedgerPage = lazy(() => import('../pages/plots/booking/PlotBookingLedgerPage'));
 const Errorpage = lazy(() => import('../pages/error/Errorpage'));
 
-export const MANAGEMENT_ROLES = [
-  'superadmin',
-  'admin',
-  'manager',
-  'accountant',
-  'cashier',
-  'hr',
-  'sales',
-  'operator',
-  'auditor',
-  'staff',
-  'other',
-  'demo'
-];
-
 const ManagementRoutes = () => (
   <Routes>
     <Route element={<ProtectedRoutes allowedRoles={MANAGEMENT_ROLES} />}>
       <Route index element={<AdminDashboard />} />
       <Route path="employe" element={<RoutePermissionGuard resource="employee" action={1}><Employe /></RoutePermissionGuard>} />
-      <Route path="organization" element={<OrganizationSettings />} />
-      <Route path="organization/company" element={<CompanyInfoPage />} />
-      <Route path="organization/branches" element={<RoutePermissionGuard resource="branch" action={1}><BranchManagerPage /></RoutePermissionGuard>} />
-      <Route path="organization/departments" element={<RoutePermissionGuard resource="department" action={1}><DepartmentPage /></RoutePermissionGuard>} />
-      <Route path="organization/devices" element={<DeviceManagementPage />} />
-      <Route path="organization/telegram" element={<TelegramIntegrationPage />} />
-      <Route path="organization/admin" element={<AdminManagerPage />} />
-      <Route path="organization/admin/new" element={<AdminUserFormPage />} />
-      <Route path="organization/admin/:id/edit" element={<AdminUserFormPage />} />
-      <Route path="organization/users" element={<AdminManagerPage />} />
-      <Route path="organization/users/new" element={<AdminUserFormPage />} />
-      <Route path="organization/users/:id/edit" element={<AdminUserFormPage />} />
+      <Route path="organization" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']}><OrganizationSettings /></RoutePermissionGuard>} />
+      <Route path="organization/company" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']}><CompanyInfoPage /></RoutePermissionGuard>} />
+      <Route path="organization/branches" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']} resource="branch" action={1}><BranchManagerPage /></RoutePermissionGuard>} />
+      <Route path="organization/departments" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']} resource="department" action={1}><DepartmentPage /></RoutePermissionGuard>} />
+      <Route path="organization/devices" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']}><DeviceManagementPage /></RoutePermissionGuard>} />
+      <Route path="organization/telegram" element={<RoutePermissionGuard allowedRoles={['admin', 'superadmin']}><TelegramIntegrationPage /></RoutePermissionGuard>} />
+      <Route path="organization/admin" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminManagerPage /></RoutePermissionGuard>} />
+      <Route path="organization/admin/new" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminUserFormPage /></RoutePermissionGuard>} />
+      <Route path="organization/admin/:id/edit" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminUserFormPage /></RoutePermissionGuard>} />
+      <Route path="organization/users" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminManagerPage /></RoutePermissionGuard>} />
+      <Route path="organization/users/new" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminUserFormPage /></RoutePermissionGuard>} />
+      <Route path="organization/users/:id/edit" element={<RoutePermissionGuard allowedRoles={['superadmin']}><AdminUserFormPage /></RoutePermissionGuard>} />
       <Route path="organization/rules" element={<RoutePermissionGuard resource="attandence" action={1}><AttendanceRulesPage /></RoutePermissionGuard>} />
       <Route path="organization/payroll" element={<RoutePermissionGuard resource="salary" action={1}><PayrollPoliciesPage /></RoutePermissionGuard>} />
       <Route path="organization/leave-policies" element={<RoutePermissionGuard resource="leave" action={1}><LeavePoliciesPage /></RoutePermissionGuard>} />

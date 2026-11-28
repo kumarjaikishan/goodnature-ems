@@ -532,18 +532,30 @@ export default function PlotBookingEditPage() {
   const totalTenureMonths = paymentPlanMode === 'ONE_TIME' ? 0 : (Number(installmentCount) || 1) * freqMultiplier;
 
   const emiTenureAdjustment = useMemo(() => {
-    if (!rateConfig?.emiTenureAdjustments?.length) {
-      return { percent: 0, action: 'NONE', amount: 0 };
+    const matched = rateConfig?.emiTenureAdjustments?.find(
+      (s) => Number(s.tenureMonths) === Number(totalTenureMonths)
+    );
+    if (matched && Number(matched.percentage)) {
+      const percent = Number(matched.percentage) || 0;
+      const action = matched.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+      const amount = Math.round((baseCalculatedPlotValue * percent) / 100);
+      return { percent, action, amount };
     }
-    const matched = rateConfig.emiTenureAdjustments.find((s) => Number(s.tenureMonths) === Number(totalTenureMonths));
-    if (!matched || !Number(matched.percentage)) {
-      return { percent: 0, action: 'NONE', amount: 0 };
+    // Preserve historical tenure adjustment if tenure hasn't changed and rateConfig no longer has the slab
+    if (
+      bookingData &&
+      Number(totalTenureMonths) === Number(bookingData.tenureMonths) &&
+      bookingData.emiTenureAdjustmentAction &&
+      bookingData.emiTenureAdjustmentAction !== 'NONE' &&
+      Number(bookingData.emiTenureAdjustmentPercent) > 0
+    ) {
+      const percent = Number(bookingData.emiTenureAdjustmentPercent);
+      const action = bookingData.emiTenureAdjustmentAction === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+      const amount = Math.round((baseCalculatedPlotValue * percent) / 100);
+      return { percent, action, amount };
     }
-    const percent = Number(matched.percentage) || 0;
-    const action = matched.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
-    const amount = Math.round((baseCalculatedPlotValue * percent) / 100);
-    return { percent, action, amount };
-  }, [totalTenureMonths, rateConfig?.emiTenureAdjustments, baseCalculatedPlotValue]);
+    return { percent: 0, action: 'NONE', amount: 0 };
+  }, [totalTenureMonths, rateConfig?.emiTenureAdjustments, baseCalculatedPlotValue, bookingData]);
 
   const calculatedPlotValue = useMemo(() => {
     if (emiTenureAdjustment.action === 'ADD') {

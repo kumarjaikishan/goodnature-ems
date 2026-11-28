@@ -4,7 +4,7 @@ class SoundService {
     this.audioCtx = null;
   }
 
-  getAudioContext() {
+  async getReadyContext() {
     if (typeof window === "undefined") return null;
     if (!this.audioCtx) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -13,16 +13,20 @@ class SoundService {
       }
     }
     if (this.audioCtx && this.audioCtx.state === "suspended") {
-      this.audioCtx.resume();
+      try {
+        await this.audioCtx.resume();
+      } catch {
+        // Browser autoplay policy may block until user interaction
+      }
     }
     return this.audioCtx;
   }
 
   // Pleasant double chime for check-in / success / voucher
-  playSuccess() {
+  async playSuccess() {
     try {
-      const ctx = this.getAudioContext();
-      if (!ctx) return;
+      const ctx = await this.getReadyContext();
+      if (!ctx || ctx.state !== "running") return;
       const now = ctx.currentTime;
 
       // Note 1: E5 (659.25Hz)
@@ -54,10 +58,10 @@ class SoundService {
   }
 
   // Soft descending chime for punch out / warnings
-  playPunchOut() {
+  async playPunchOut() {
     try {
-      const ctx = this.getAudioContext();
-      if (!ctx) return;
+      const ctx = await this.getReadyContext();
+      if (!ctx || ctx.state !== "running") return;
       const now = ctx.currentTime;
 
       const osc1 = ctx.createOscillator();

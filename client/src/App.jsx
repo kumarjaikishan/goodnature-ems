@@ -5,13 +5,10 @@ import { useEffect, Suspense, lazy } from 'react';
 import { FirstFetch } from '../store/userSlice';
 import { empFirstFetch } from '../store/employee';
 import { setlogin } from '../store/authSlice';
-import { connectSSE, closeSSE } from "./utils/sse";
-import { notificationSound } from "./utils/sound";
-import dayjs from 'dayjs';
 
 import ScrollToTop from './components/ScrollToTop';
 import { swal } from './utils/confirmDialog';
-import { isTokenValid, clearAuthSession, getRoleFromToken } from './utils/auth';
+import { isTokenValid, clearAuthSession, getRoleFromToken, MANAGEMENT_ROLES } from './utils/auth';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageLoader from './components/common/PageLoader';
 
@@ -26,21 +23,6 @@ const ManagementRoutes = lazy(() => import('./routes/ManagementRoutes'));
 const SponsorRoutes = lazy(() => import('./routes/SponsorRoutes'));
 const EmployeeRoutes = lazy(() => import('./routes/EmployeeRoutes'));
 const DeveloperRoutes = lazy(() => import('./routes/DeveloperRoutes'));
-
-const MANAGEMENT_ROLES = [
-  'superadmin',
-  'admin',
-  'manager',
-  'accountant',
-  'cashier',
-  'hr',
-  'sales',
-  'operator',
-  'auditor',
-  'staff',
-  'other',
-  'demo'
-];
 
 function App() {
   const dispatch = useDispatch();
@@ -139,58 +121,79 @@ function App() {
   const hasValidAuth = islogin && isTokenValid(typeof window !== 'undefined' ? localStorage.getItem('emstoken') : null);
 
   useEffect(() => {
+    let cancelled = false;
+    let closeFn = null;
+
     if (hasValidAuth && user?.liveAttandence && ["superadmin", "admin", "manager", "demo"].includes(user?.profile?.role)) {
-      const es = connectSSE((data) => {
-        if (data.type === 'attendance_update') {
-          if (data.payload.type === 'punchIn') {
-            if (user?.notificationSoundEnabled) {
-              notificationSound.playSuccess();
+      Promise.all([import("./utils/sse"), import("./utils/sound")]).then(
+        ([{ connectSSE, closeSSE }, { notificationSound }]) => {
+          if (cancelled) return;
+          closeFn = closeSSE;
+          const formatTime = (dt) =>
+            new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+          connectSSE((data) => {
+            if (data.type === 'attendance_update') {
+              const eventAction = data?.payload?.action || data?.payload?.type;
+              const record = data?.payload?.data;
+              const empName = record?.employeeId?.userid?.name || record?.name || 'Employee';
+              const isSoundEnabled = user?.notificationSoundEnabled ?? true;
+
+              if (eventAction === 'checkin' || eventAction === 'punchIn') {
+                if (isSoundEnabled) {
+                  notificationSound.playSuccess();
+                }
+                toast.success(
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                    <span>
+                      <span className="font-bold text-teal-800">
+                        {empName}
+                      </span>{" "}
+                      has Punched In{record?.punchIn ? ` at ` : ''}
+                      {record?.punchIn && (
+                        <span className="text-teal-700">
+                          {formatTime(record.punchIn)}
+                        </span>
+                      )}
+                    </span>
+                  </div>,
+                  { duration: 20000 }
+                );
+              } else if (eventAction === 'checkOut' || eventAction === 'punchOut') {
+                if (isSoundEnabled) {
+                  notificationSound.playPunchOut();
+                }
+                toast.warning(
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>
+                      <span className="font-bold text-amber-800">
+                        {empName}
+                      </span>{" "}
+                      has Punched Out{record?.punchOut ? ` at ` : ''}
+                      {record?.punchOut && (
+                        <span className="text-amber-700">
+                          {formatTime(record.punchOut)}
+                        </span>
+                      )}
+                    </span>
+                  </div>,
+                  { duration: 20000 }
+                );
+              }
+              window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
             }
-            toast.success(
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-                <span>
-                  <span className="font-bold text-teal-800">
-                    {data.payload.data.name}
-                  </span>{" "}
-                  has Punched In at{" "}
-                  <span className="text-teal-700">
-                    {dayjs(data.payload.data.punchIn).format("hh:mm A")}
-                  </span>
-                </span>
-              </div>,
-              { duration: 20000 }
-            );
-            window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
-          } else if (data.payload.type === 'punchOut') {
-            if (user?.notificationSoundEnabled) {
-              notificationSound.playPunchOut();
-            }
-            toast.warning(
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>
-                  <span className="font-bold text-amber-800">
-                    {data.payload.data.name}
-                  </span>{" "}
-                  has Punched Out at{" "}
-                  <span className="text-amber-700">
-                    {dayjs(data.payload.data.punchOut).format("hh:mm A")}
-                  </span>
-                </span>
-              </div>,
-              { duration: 20000 }
-            );
-            window.dispatchEvent(new CustomEvent('attendance_updated', { detail: data.payload }));
-          }
+          });
         }
-      });
+      );
 
       return () => {
-        closeSSE();
+        cancelled = true;
+        if (closeFn) closeFn();
       };
     }
-  }, [user?.liveAttandence, user?.notificationSoundEnabled]);
+  }, [hasValidAuth, user?.liveAttandence, user?.notificationSoundEnabled, user?.profile?.role]);
 
   return (
     <>

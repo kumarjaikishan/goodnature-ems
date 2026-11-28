@@ -2,6 +2,21 @@ import { setlogin } from '../../store/authSlice';
 import { userlogout } from '../../store/userSlice';
 import { emplogout } from '../../store/employee';
 
+export const MANAGEMENT_ROLES = [
+  'superadmin',
+  'admin',
+  'manager',
+  'accountant',
+  'cashier',
+  'hr',
+  'sales',
+  'operator',
+  'auditor',
+  'staff',
+  'other',
+  'demo',
+];
+
 /**
  * Validates whether a JWT token string exists, is well-formed, and not expired.
  * @param {string|null} token

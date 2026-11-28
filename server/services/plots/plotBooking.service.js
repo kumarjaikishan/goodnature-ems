@@ -2249,6 +2249,7 @@ class PlotBookingService {
         booking.customerId = customerId;
       }
 
+      let plotChanged = false;
       if (plotId !== undefined && plotId && String(plotId) !== String(booking.plotId)) {
         const oldPlot = await Plot.findById(booking.plotId).session(session);
         if (oldPlot) {
@@ -2256,6 +2257,7 @@ class PlotBookingService {
           await oldPlot.save({ session });
         }
         booking.plotId = plotId;
+        plotChanged = true;
         const newPlot = await Plot.findById(plotId).session(session);
         if (newPlot) {
           newPlot.status = (booking.status === 'HOLD' || booking.bookingType === 'HOLD') ? 'HOLD' : 'BOOKED';
@@ -2271,6 +2273,7 @@ class PlotBookingService {
       if (tenureMonths !== undefined || newBaseRate !== undefined) {
         const resolvedTenure = tenureMonths !== undefined ? Number(tenureMonths) : booking.tenureMonths;
         const tenureChanged = Number(resolvedTenure) !== Number(booking.tenureMonths);
+        const baseRateChanged = newBaseRate !== undefined && Number(newBaseRate) !== Number(booking.basePlotRate || 1000);
         booking.tenureMonths = resolvedTenure;
         booking.scheme = resolvedTenure === 0 ? 'FULL_PAYMENT' : 'MONTHLY_INSTALLMENT';
         
@@ -2308,11 +2311,44 @@ class PlotBookingService {
         if (data.branchCommissionPercent !== undefined) {
           booking.branchCommissionPercent = Number(data.branchCommissionPercent) || 0;
         }
+
         if (plotArea > 0) {
-          booking.plotValue = Math.round(plotArea * effectiveRate);
+          const baseCalculatedValue = Math.round(plotArea * effectiveRate);
+          let tenureAdjPercent = 0;
+          let tenureAdjAction = 'NONE';
+          let tenureAdjAmount = 0;
+
+          const matchingSlab = (resolvedTenure >= 0 && Array.isArray(rateConfig?.emiTenureAdjustments))
+            ? rateConfig.emiTenureAdjustments.find((s) => Number(s.tenureMonths) === Number(resolvedTenure))
+            : null;
+
+          if (matchingSlab && Number(matchingSlab.percentage) > 0) {
+            tenureAdjPercent = Number(matchingSlab.percentage);
+            tenureAdjAction = matchingSlab.action === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+            tenureAdjAmount = Math.round((baseCalculatedValue * tenureAdjPercent) / 100);
+          } else if (!plotChanged && !tenureChanged && !baseRateChanged && booking.emiTenureAdjustmentAction && booking.emiTenureAdjustmentAction !== 'NONE' && Number(booking.emiTenureAdjustmentPercent) > 0) {
+            // Preserve historical tenure adjustment if rateConfig no longer has this slab and rate/tenure didn't change
+            tenureAdjPercent = Number(booking.emiTenureAdjustmentPercent);
+            tenureAdjAction = booking.emiTenureAdjustmentAction === 'DEDUCT' ? 'DEDUCT' : 'ADD';
+            tenureAdjAmount = Math.round((baseCalculatedValue * tenureAdjPercent) / 100);
+          }
+
+          booking.emiTenureAdjustmentPercent = tenureAdjPercent;
+          booking.emiTenureAdjustmentAction = tenureAdjAction;
+          booking.emiTenureAdjustmentAmount = tenureAdjAmount;
+
+          let finalPlotValue = baseCalculatedValue;
+          if (tenureAdjAction === 'ADD') {
+            finalPlotValue += tenureAdjAmount;
+          } else if (tenureAdjAction === 'DEDUCT') {
+            finalPlotValue = Math.max(0, finalPlotValue - tenureAdjAmount);
+          }
+          booking.plotValue = finalPlotValue;
         }
 
-        installmentParamsChanged = true;
+        if (plotChanged || tenureChanged || baseRateChanged || Number(booking.plotValue) !== Number(previousSnapshot.plotValue)) {
+          installmentParamsChanged = true;
+        }
       } else if (scheme !== undefined && scheme !== booking.scheme) {
         booking.scheme = scheme;
         installmentParamsChanged = true;

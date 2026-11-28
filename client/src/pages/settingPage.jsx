@@ -34,7 +34,7 @@ const Settings = () => {
 
                 <div className="divide-y divide-slate-100">
                     {/* Live Attendance Notifications (Admins & Managers) */}
-                    {user?.profile?.role && ["admin", "superadmin", "manager"].includes(user?.profile?.role) && (
+                    {user?.profile?.role && ["admin", "superadmin", "manager", "demo"].includes(user?.profile?.role) && (
                         <div className="flex items-center justify-between p-4 sm:p-5 hover:bg-slate-50/60 transition">
                             <div className="pr-4">
                                 <span className="text-sm font-semibold text-slate-800 block">Live Attendance Popups</span>
