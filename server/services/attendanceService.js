@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const Holiday = require('../models/holiday');
 const company = require('../models/company');
 const BranchModal = require('../models/branch');
+const AttendanceRuleSnapshot = require('../models/attendanceRuleSnapshot');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -8,12 +10,31 @@ const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+// In-memory cache mapping `hash` -> ObjectId to avoid repeated DB lookups
+const snapshotIdCache = new Map();
+const MAX_SNAPSHOT_CACHE_SIZE = 500;
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+}
+
+function hashRulesSnapshot(rules) {
+  return crypto.createHash('sha256').update(stableStringify(rules || {})).digest('hex');
+}
+
 /**
  * Helper to build a rules snapshot from branch/company settings.
  */
 async function getRulesSnapshot(companyId, branchId) {
-  const companyData = await company.findById(companyId);
-  const branch = await BranchModal.findById(branchId);
+  const companyData = companyId ? await company.findById(companyId) : await company.findOne();
+  const branch = branchId ? await BranchModal.findById(branchId) : null;
 
   if (!companyData) return null;
 
@@ -39,6 +60,55 @@ async function getRulesSnapshot(companyId, branchId) {
 }
 
 /**
+ * Deduplicate rules snapshots by content hash and return { snapshotId, rules }.
+ */
+async function getOrCreateRuleSnapshotId(companyId, branchId, precomputedRules = null) {
+  const rules = precomputedRules || await getRulesSnapshot(companyId, branchId);
+  if (!rules) return { snapshotId: null, rules: null };
+
+  const plainRules = JSON.parse(JSON.stringify(rules));
+  const hash = hashRulesSnapshot(plainRules);
+
+  if (snapshotIdCache.has(hash)) {
+    return { snapshotId: snapshotIdCache.get(hash), rules: plainRules };
+  }
+
+  const doc = await AttendanceRuleSnapshot.findOneAndUpdate(
+    { hash },
+    { $setOnInsert: { hash, rules: plainRules } },
+    { upsert: true, new: true }
+  ).select('_id').lean();
+
+  if (snapshotIdCache.size >= MAX_SNAPSHOT_CACHE_SIZE) {
+    const firstKey = snapshotIdCache.keys().next().value;
+    snapshotIdCache.delete(firstKey);
+  }
+  snapshotIdCache.set(hash, doc._id);
+
+  return { snapshotId: doc._id, rules: plainRules };
+}
+
+/**
+ * Resolve rules for an attendance record:
+ * 1) Legacy embedded `record.rulesSnapshot` (if present and non-empty)
+ * 2) Referenced `record.rulesSnapshotId` (populated or fetched)
+ * 3) Live company/branch fallback
+ */
+async function resolveRecordRules(record, companyId, branchId) {
+  if (record?.rulesSnapshot && record.rulesSnapshot.workingMinutes) {
+    return record.rulesSnapshot;
+  }
+  if (record?.rulesSnapshotId) {
+    if (record.rulesSnapshotId.rules) {
+      return record.rulesSnapshotId.rules;
+    }
+    const snapDoc = await AttendanceRuleSnapshot.findById(record.rulesSnapshotId).select('rules').lean();
+    if (snapDoc?.rules) return snapDoc.rules;
+  }
+  return getRulesSnapshot(companyId, branchId);
+}
+
+/**
  * Helper to calculate working, overtime, and short minutes based on rules.
  * Also determines status and remarks for holidays/weekly offs.
  */
@@ -48,13 +118,13 @@ async function calculateStats(record, companyData, branch) {
   const workingMinutes = Math.floor((record.punchOut - record.punchIn) / (1000 * 60));
   record.workingMinutes = workingMinutes;
 
-  let snapshot = record.rulesSnapshot;
-  if (!snapshot) {
-    // Fallback for existing records: fetch current rules
-    snapshot = await getRulesSnapshot(companyData._id, branch._id);
-    record.rulesSnapshot = snapshot;
-  }
+  let snapshot = await resolveRecordRules(record, companyData._id, branch?._id || record.branchId);
   if (!snapshot) return; // Cannot calculate without rules
+
+  if (!record.rulesSnapshotId && (!record.rulesSnapshot || !record.rulesSnapshot.workingMinutes)) {
+    const { snapshotId } = await getOrCreateRuleSnapshotId(companyData._id, branch?._id || record.branchId, snapshot);
+    if (snapshotId) record.rulesSnapshotId = snapshotId;
+  }
 
   const wm = snapshot.workingMinutes;
   const overtimeRules = snapshot.overtimeRules || {};
@@ -200,5 +270,7 @@ async function calculateStats(record, companyData, branch) {
 
 module.exports = {
   getRulesSnapshot,
+  getOrCreateRuleSnapshotId,
+  resolveRecordRules,
   calculateStats
 };

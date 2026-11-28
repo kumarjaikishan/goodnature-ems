@@ -13,6 +13,7 @@ import DateInput from '../../../components/ui/DateInput';
 import Select from '../../../components/ui/Select';
 
 const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle, setopenmodal, isUpdate, isload, inp, setinp, setisUpdate }) => {
+    const isDevMode = import.meta.env.DEV;
     const { department, employee } = useSelector((state) => state.user);
     const [fetchingAttendance, setFetchingAttendance] = useState(false);
     const [existingRecord, setExistingRecord] = useState(null);
@@ -69,20 +70,23 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
         };
     }, [openmodal, inp?.employeeId, inp?.date]);
 
-    // Keep attendance date locked to today when modal opens, and reset state when closed
+    // Keep attendance date locked to today in production; allow choosing date in development
     useEffect(() => {
         if (openmodal) {
-            setinp(prev => (
-                prev?.date && dayjs(prev.date).isSame(dayjs(), 'day')
+            setinp(prev => {
+                if (isDevMode) {
+                    return prev?.date ? prev : { ...prev, date: dayjs() };
+                }
+                return prev?.date && dayjs(prev.date).isSame(dayjs(), 'day')
                     ? prev
-                    : { ...prev, date: dayjs() }
-            ));
+                    : { ...prev, date: dayjs() };
+            });
         } else {
             setExistingRecord(null);
             setEmployeeSearch('');
             setEmployeeDropdownOpen(false);
         }
-    }, [openmodal, setinp]);
+    }, [openmodal, setinp, isDevMode]);
 
     const activeEmployees = useMemo(
         () => (employee || []).filter(e => e.status !== false),
@@ -161,8 +165,16 @@ const MarkAttandence = ({ openmodal, isPunchIn, init, setisPunchIn, submitHandle
                             size="sm"
                             label="Attendance Date"
                             required
-                            disabled
-                            value={dayjs().format('YYYY-MM-DD')}
+                            disabled={!isDevMode}
+                            value={inp?.date ? dayjs(inp.date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')}
+                            onChange={(e) => {
+                                if (!isDevMode) return;
+                                const val = e?.target?.value;
+                                setinp((prev) => ({
+                                    ...prev,
+                                    date: val ? dayjs(val) : dayjs()
+                                }));
+                            }}
                         />
                     </div>
 

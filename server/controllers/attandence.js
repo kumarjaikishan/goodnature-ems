@@ -23,7 +23,7 @@ const {
   getMonthDateRangeUTC,
   ATTENDANCE_TIMEZONE
 } = require('../utils/attendanceTime');
-const { getRulesSnapshot, calculateStats } = require('../services/attendanceService');
+const { getRulesSnapshot, getOrCreateRuleSnapshotId, resolveRecordRules, calculateStats } = require('../services/attendanceService');
 const { syncMonthlyEarnedWeeklyOff } = require('../services/weeklyOffService');
 const ApiResponse = require('../utils/apiResponse');
 const { logActivity } = require('../utils/auditLogger');
@@ -99,7 +99,7 @@ const webattandence = async (req, res, next) => {
     }
     const empDoc = await employee.findById(employeeId).select('branchId');
     if (!empDoc) return res.status(404).json({ message: 'Employee not found' });
-    const snapshot = await getRulesSnapshot(req.user.companyId, empDoc.branchId);
+    const { snapshotId, rules: snapshot } = await getOrCreateRuleSnapshotId(req.user.companyId, empDoc.branchId);
 
     attendance = new Attendance({
       attendanceById: req.user.id,
@@ -110,7 +110,7 @@ const webattandence = async (req, res, next) => {
       punchIn: punchInTime,
       dutyStart: snapshot?.officeTime?.in || "10:00",
       dutyEnd: snapshot?.officeTime?.out || "18:00",
-      rulesSnapshot: snapshot,
+      rulesSnapshotId: snapshotId,
       status: status ?? "present",
     });
 
@@ -282,7 +282,7 @@ const checkin = async (req, res) => {
       dutyStart: snapshot.officeTime?.in,
       dutyEnd: snapshot.officeTime?.out,
 
-      rulesSnapshot: snapshot,
+      rulesSnapshotId: (await getOrCreateRuleSnapshotId(req.user.companyId, emp.branchId, snapshot)).snapshotId,
 
       workingMinutes: 0,
       overtimeMinutes: 0,
@@ -417,7 +417,7 @@ const checkout = async (req, res) => {
 
     await calculateStats(record, companyData, branch);
 
-    const snapshot = record.rulesSnapshot;
+    const snapshot = await resolveRecordRules(record, companyData._id, branch?._id || record.branchId);
     const wm = snapshot.workingMinutes;
     const workingMinutes = record.workingMinutes;
 
@@ -560,15 +560,10 @@ const recordAttendanceFromLogs = async (req, res, next) => {
         const companyData = await company.findOne();
         const branch = await BranchModal.findById(employeeDoc.branchId);
 
-        // Ensure rulesSnapshot is available (if this was created via device, it might not be)
-        if (!attendance.rulesSnapshot) {
-          let snapshot = {};
-          if (branch?.defaultsetting) {
-            snapshot = { officeTime: companyData.officeTime, gracePeriod: companyData.gracePeriod, workingMinutes: companyData.workingMinutes, attendanceRules: companyData.attendanceRules, weeklyOffs: companyData.weeklyOffs, overtimeRules: companyData.overtimeRules };
-          } else {
-            snapshot = { officeTime: branch.setting.officeTime, gracePeriod: branch.setting.gracePeriod, workingMinutes: branch.setting.workingMinutes, attendanceRules: branch.setting.attendanceRules, weeklyOffs: branch.setting.weeklyOffs, overtimeRules: branch.setting.overtimeRules };
-          }
-          attendance.rulesSnapshot = snapshot;
+        // Ensure rulesSnapshotId is set if missing (for device-created punch-in)
+        if (!attendance.rulesSnapshotId && !attendance.rulesSnapshot) {
+          const { snapshotId } = await getOrCreateRuleSnapshotId(companyData._id, employeeDoc.branchId);
+          if (snapshotId) attendance.rulesSnapshotId = snapshotId;
         }
 
         await calculateStats(attendance, companyData, branch);
@@ -629,7 +624,7 @@ const facecheckin = async (req, res, next) => {
     }
 
     // Create attendance
-    const snapshot = await getRulesSnapshot(req.user.companyId, whichemployee.branchId);
+    const { snapshotId } = await getOrCreateRuleSnapshotId(req.user.companyId, whichemployee.branchId);
 
     const attendanceData = {
       companyId: req.user.companyId,
@@ -637,7 +632,7 @@ const facecheckin = async (req, res, next) => {
       employeeId,
       date: dateObj,
       punchIn: punchIn,
-      rulesSnapshot: snapshot,
+      rulesSnapshotId: snapshotId,
       status: 'present'
     };
 
@@ -881,7 +876,7 @@ const bulkMarkAttendance = async (req, res) => {
               dutyStart: snapshot.officeTime.in,
               dutyEnd: snapshot.officeTime.out,
 
-              rulesSnapshot: snapshot,
+              rulesSnapshotId: (await getOrCreateRuleSnapshotId(req.user.companyId, emp.branchId, snapshot)).snapshotId,
 
               workingMinutes,
               overtimeMinutes,
@@ -1101,7 +1096,7 @@ const bulkMarkAttendanceExcel = async (req, res) => {
               punchOutStatus,
               dutyStart: snapshot.officeTime.in,
               dutyEnd: snapshot.officeTime.out,
-              rulesSnapshot: snapshot,
+              rulesSnapshotId: (await getOrCreateRuleSnapshotId(req.user.companyId, emp.branchId, snapshot)).snapshotId,
               workingMinutes,
               overtimeMinutes,
               shortMinutes,
@@ -1405,7 +1400,11 @@ const editattandence = async (req, res) => {
       return h * 60 + m;
     };
 
-    const rules = data.rulesSnapshot;
+    const rules = await resolveRecordRules(data, data.companyId, data.employeeId?.branchId || data.branchId);
+    if (!data.rulesSnapshotId && !data.rulesSnapshot && rules) {
+      const { snapshotId } = await getOrCreateRuleSnapshotId(data.companyId, data.employeeId?.branchId || data.branchId, rules);
+      if (snapshotId) data.rulesSnapshotId = snapshotId;
+    }
 
     // 🔹 Reset
     data.workingMinutes = 0;

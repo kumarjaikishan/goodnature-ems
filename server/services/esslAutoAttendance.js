@@ -3,6 +3,7 @@ const Employee = require('../models/employee');
 const Company = require('../models/company');
 const Branch = require('../models/branch');
 const Holiday = require('../models/holiday');
+const { getOrCreateRuleSnapshotId } = require('./attendanceService');
 const { sendToClients } = require('../utils/sse');
 const {
   parseAttendanceDateTime,
@@ -94,6 +95,7 @@ async function processBranchAutoAttendance(companyDoc, branchDoc, now) {
 
   const existingEmployeeSet = new Set(existingRecords.map((r) => String(r.employeeId)));
   const action = missingPunchInRule.action === 'autoPunchIn' ? 'autoPunchIn' : 'markAbsent';
+  const { snapshotId } = await getOrCreateRuleSnapshotId(companyDoc._id, branchDoc._id, snapshot);
   const docsToInsert = [];
 
   for (const emp of employees) {
@@ -110,7 +112,7 @@ async function processBranchAutoAttendance(companyDoc, branchDoc, now) {
         source: 'device',
         dutyStart: snapshot.officeTime?.in,
         dutyEnd: snapshot.officeTime?.out,
-        rulesSnapshot: snapshot,
+        rulesSnapshotId: snapshotId,
         workingMinutes: 0,
         overtimeMinutes: 0,
         shortMinutes: 0,
@@ -143,7 +145,7 @@ async function processBranchAutoAttendance(companyDoc, branchDoc, now) {
       source: 'device',
       dutyStart: snapshot.officeTime?.in,
       dutyEnd: snapshot.officeTime?.out,
-      rulesSnapshot: snapshot,
+      rulesSnapshotId: snapshotId,
       workingMinutes: 0,
       overtimeMinutes: 0,
       shortMinutes: 0,

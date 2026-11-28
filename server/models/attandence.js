@@ -70,6 +70,8 @@ const attendanceSchema = new mongoose.Schema({
   remarks: { type: String, default: null },
   dutyStart: String,
   dutyEnd: String,
+  rulesSnapshotId: { type: mongoose.Schema.Types.ObjectId, ref: 'AttendanceRuleSnapshot', default: null },
+  // Legacy embedded snapshot kept optional for backward compatibility with existing records
   rulesSnapshot: rulesSnapshotSchema,
 
   workingMinutes: Number,
@@ -95,8 +97,6 @@ const attendanceSchema = new mongoose.Schema({
 
 attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 // Support date-range and branch-wide list queries
-attendanceSchema.index({ date: -1 });
-attendanceSchema.index({ branchId: 1, date: -1 });
 attendanceSchema.index({ companyId: 1, date: -1 });
 attendanceSchema.index({ companyId: 1, branchId: 1, date: -1 });
 

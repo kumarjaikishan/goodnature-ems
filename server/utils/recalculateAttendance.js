@@ -11,7 +11,7 @@ const Company = require('../models/company');
 const Branch = require('../models/branch');
 const Holiday = require('../models/holiday');
 const dayjs = require('dayjs');
-const { getRulesSnapshot } = require('../services/attendanceService');
+const { getRulesSnapshot, getOrCreateRuleSnapshotId } = require('../services/attendanceService');
 
 // Use current connection logic or custom one
 const connStr = process.env.db || "mongodb://localhost:27017/ems";
@@ -51,8 +51,9 @@ async function run() {
 
         if (!snapshot) continue;
 
-        // 1. Update Snapshot
-        record.rulesSnapshot = snapshot;
+        // 1. Update Snapshot reference
+        const { snapshotId } = await getOrCreateRuleSnapshotId(company._id, branchId, snapshot);
+        if (snapshotId) record.rulesSnapshotId = snapshotId;
 
         // 2. Recalculate working minutes if punchIn/Out exists
         if (record.punchIn && record.punchOut) {
